@@ -116,7 +116,7 @@ jobs:
             }
 
             reviewComment += '\n\n---\n';
-            reviewComment += '*Automated review by Claude AI | See [CLAUDE.md](../blob/main/CLAUDE.md) for more information*';
+            reviewComment += '*Automated review by Claude AI | See [CLAUDE.md](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/main/CLAUDE.md) for more information*';
 
             const prNumber = ${{ fromJson(steps.pr.outputs.result).number }};
 
