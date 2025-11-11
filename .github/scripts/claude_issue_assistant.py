@@ -96,7 +96,7 @@ class ClaudeIssueAssistant:
                 if hasattr(content, 'decoded_content'):
                     code = content.decoded_content.decode('utf-8')
                     code_snippets.append(f"### {file_path}\n\n```python\n{code[:1000]}\n```")
-            except Exception:
+            except UnknownObjectException:
                 continue
 
         return "\n\n".join(code_snippets) if code_snippets else "No code files referenced"
