@@ -173,7 +173,7 @@ Want a focused review on specific aspects? Tag @claude with a comment:
 - `@claude suggest optimizations` - Performance review
 - `@claude review test coverage` - Testing review
 
-See [CLAUDE.md](../blob/main/CLAUDE.md) for more information.
+See [CLAUDE.md](../CLAUDE.md) for more information.
 
 ---
 
