@@ -97,7 +97,7 @@ test-verbose: ## Run tests with verbose output
 
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage report
-	pytest --cov=arena_improver --cov-report=html --cov-report=term-missing
+	pytest --cov=. --cov-report=html --cov-report=term-missing
 
 .PHONY: test-fast
 test-fast: ## Run tests in parallel
