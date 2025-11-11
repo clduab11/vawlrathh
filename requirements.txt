@@ -1,0 +1,91 @@
+# ============================================================================
+# Production Dependencies for arena-improver
+# ============================================================================
+#
+# This file contains only production dependencies. For development dependencies,
+# see requirements-dev.txt
+#
+# Best Practices (November 2025):
+# - All versions are pinned for reproducibility
+# - Dependencies are organized by category
+# - Security updates are prioritized
+# - Use 'pip install -r requirements.txt' to install
+# - For locked dependencies with hashes, use pip-tools or uv
+#
+# To upgrade dependencies safely:
+#   pip install --upgrade pip-tools
+#   pip-compile --upgrade --resolver=backtracking requirements.in
+#
+# Last updated: 2025-11-11
+# Python version: 3.11+
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Core Framework Dependencies
+# ----------------------------------------------------------------------------
+# Add your web framework or core dependencies here when needed
+# Examples (uncomment as needed):
+# flask==3.0.3              # Lightweight web framework
+# fastapi==0.115.0          # Modern async web framework
+# django==5.1.3             # Full-featured web framework
+
+# ----------------------------------------------------------------------------
+# Data Processing & Analysis
+# ----------------------------------------------------------------------------
+# numpy==2.1.3              # Numerical computing
+# pandas==2.2.3             # Data analysis and manipulation
+# scipy==1.14.1             # Scientific computing
+
+# ----------------------------------------------------------------------------
+# Database & ORM
+# ----------------------------------------------------------------------------
+# sqlalchemy==2.0.36        # SQL toolkit and ORM
+# psycopg2-binary==2.9.10   # PostgreSQL adapter
+# pymongo==4.10.1           # MongoDB driver
+# redis==5.2.0              # Redis client
+
+# ----------------------------------------------------------------------------
+# HTTP & API Clients
+# ----------------------------------------------------------------------------
+# httpx==0.27.2             # Modern HTTP client with async support
+# requests==2.32.3          # Simple HTTP library
+# aiohttp==3.11.7           # Async HTTP client/server
+
+# ----------------------------------------------------------------------------
+# Authentication & Security
+# ----------------------------------------------------------------------------
+# pyjwt==2.9.0              # JSON Web Token implementation
+# cryptography==43.0.3      # Cryptographic recipes and primitives
+# python-dotenv==1.0.1      # Environment variable management
+# passlib==1.7.4            # Password hashing
+
+# ----------------------------------------------------------------------------
+# Utilities
+# ----------------------------------------------------------------------------
+# pydantic==2.10.2          # Data validation using Python type hints
+# python-dateutil==2.9.0    # Extensions to the standard datetime module
+# click==8.1.7              # CLI creation toolkit
+# rich==13.9.4              # Rich text and formatting in terminal
+
+# ----------------------------------------------------------------------------
+# Monitoring & Logging
+# ----------------------------------------------------------------------------
+# structlog==24.4.0         # Structured logging
+# sentry-sdk==2.18.0        # Error tracking and monitoring
+
+# ----------------------------------------------------------------------------
+# Task Queue & Background Jobs
+# ----------------------------------------------------------------------------
+# celery==5.4.0             # Distributed task queue
+# redis==5.2.0              # Required for Celery broker
+
+# ============================================================================
+# Notes:
+# ============================================================================
+# - Keep this file minimal - only include what you actually use
+# - Remove commented examples you don't need
+# - Run security audits regularly: pip-audit or safety check
+# - Consider using pip-tools to generate from requirements.in
+# - For reproducible builds, consider using hashes:
+#   pip-compile --generate-hashes requirements.in
+# ============================================================================

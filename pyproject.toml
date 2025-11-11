@@ -1,0 +1,383 @@
+# ============================================================================
+# pyproject.toml - Modern Python Project Configuration
+# ============================================================================
+# This file follows PEP 517, 518, and 621 standards for Python projects.
+# It centralizes build system requirements, project metadata, and tool
+# configurations in a single file.
+#
+# Last updated: 2025-11-11
+# ============================================================================
+
+[build-system]
+# PEP 517: Specify build backend
+requires = ["setuptools>=75.0.0", "wheel>=0.45.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arena-improver"
+version = "0.1.0"
+description = "Hackathon submission for LiquidMetal/Raindrop submission"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "AGPL-3.0"}
+authors = [
+    {name = "Arena Improver Team", email = "team@example.com"}
+]
+maintainers = [
+    {name = "Arena Improver Team", email = "team@example.com"}
+]
+keywords = ["hackathon", "arena", "improver"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+
+# Core dependencies (sync with requirements.txt)
+dependencies = []
+
+[project.optional-dependencies]
+# Development dependencies
+dev = [
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.2",
+    "mypy>=1.13.0",
+    "black>=24.10.0",
+    "isort>=5.13.2",
+    "pre-commit>=4.0.1",
+    "ipython>=8.30.0",
+    "pip-tools>=7.4.1",
+]
+
+# Testing dependencies
+test = [
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.6.1",
+    "hypothesis>=6.122.3",
+    "faker>=33.1.0",
+]
+
+# Documentation dependencies
+docs = [
+    "sphinx>=8.1.3",
+    "sphinx-rtd-theme>=3.0.2",
+    "myst-parser>=4.0.0",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.5.48",
+]
+
+# All development dependencies combined
+all = [
+    "arena-improver[dev,test,docs]",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/arena-improver"
+Repository = "https://github.com/yourusername/arena-improver"
+Issues = "https://github.com/yourusername/arena-improver/issues"
+Changelog = "https://github.com/yourusername/arena-improver/blob/main/CHANGELOG.md"
+
+# ============================================================================
+# Tool Configurations
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Ruff - Fast Python Linter & Formatter (replaces flake8, isort, black)
+# ----------------------------------------------------------------------------
+[tool.ruff]
+# Set the target Python version
+target-version = "py311"
+
+# File/directory patterns to exclude
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+# Line length
+line-length = 100
+
+# Indentation
+indent-width = 4
+
+[tool.ruff.lint]
+# Enable specific rule sets
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "EM",     # flake8-errmsg
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "PIE",    # flake8-pie
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SIM",    # flake8-simplify
+    "TID",    # flake8-tidy-imports
+    "TCH",    # flake8-type-checking
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate
+    "PD",     # pandas-vet
+    "PGH",    # pygrep-hooks
+    "PL",     # pylint
+    "TRY",    # tryceratops
+    "FLY",    # flynt
+    "PERF",   # perflint
+    "RUF",    # ruff-specific rules
+]
+
+# Rules to ignore
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "PLR0913", # Too many arguments
+    "PLR0912", # Too many branches
+    "TRY003",  # Avoid specifying long messages outside exception class
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+# Use double quotes for strings
+quote-style = "double"
+
+# Indent with spaces
+indent-style = "space"
+
+# Use Unix line endings
+line-ending = "lf"
+
+# Enable automatic trailing comma insertion
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint.isort]
+known-first-party = ["arena_improver"]
+
+# ----------------------------------------------------------------------------
+# Black - Code Formatter
+# ----------------------------------------------------------------------------
+[tool.black]
+line-length = 100
+target-version = ['py311', 'py312', 'py313']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+# ----------------------------------------------------------------------------
+# isort - Import Statement Organizer
+# ----------------------------------------------------------------------------
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+known_first_party = ["arena_improver"]
+
+# ----------------------------------------------------------------------------
+# MyPy - Static Type Checker
+# ----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+
+# Per-module options
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# ----------------------------------------------------------------------------
+# Pytest - Testing Framework
+# ----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--showlocals",
+    "--verbose",
+    "--cov=arena_improver",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# ----------------------------------------------------------------------------
+# Coverage - Code Coverage Measurement
+# ----------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["arena_improver"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/virtualenv/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "def __str__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if typing.TYPE_CHECKING:",
+    "@abstractmethod",
+    "@abc.abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ----------------------------------------------------------------------------
+# Bandit - Security Linter
+# ----------------------------------------------------------------------------
+[tool.bandit]
+exclude_dirs = ["tests", "venv", ".venv"]
+skips = ["B101", "B601"]  # Skip assert_used and shell injection in tests
+
+# ----------------------------------------------------------------------------
+# Pylint - Comprehensive Linter
+# ----------------------------------------------------------------------------
+[tool.pylint.master]
+ignore-paths = ["^.venv/.*$", "^venv/.*$", "^build/.*$"]
+jobs = 0  # Use all available cores
+
+[tool.pylint.messages_control]
+max-line-length = 100
+disable = [
+    "C0111",  # missing-docstring
+    "C0103",  # invalid-name
+    "R0903",  # too-few-public-methods
+    "R0913",  # too-many-arguments
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+# ============================================================================
+# Additional Configuration Notes
+# ============================================================================
+#
+# Modern Python Dependency Management (2025):
+# --------------------------------------------
+# 1. pip-tools: Generate locked requirements from abstract dependencies
+#    pip-compile requirements.in -o requirements.txt
+#
+# 2. uv: Ultra-fast Python package installer (Rust-based)
+#    uv pip install -r requirements.txt
+#
+# 3. Poetry: Complete dependency management solution
+#    poetry add <package>
+#
+# 4. PDM: Modern Python package manager following PEP 582
+#    pdm add <package>
+#
+# Security Best Practices:
+# ------------------------
+# - Run pip-audit regularly to check for vulnerabilities
+# - Use dependabot or renovate for automated dependency updates
+# - Pin dependencies in production, use ranges in libraries
+# - Review security advisories: https://github.com/advisories
+#
+# Code Quality Workflow:
+# ----------------------
+# 1. Install pre-commit hooks: pre-commit install
+# 2. Run before commits: ruff check . && mypy . && pytest
+# 3. CI/CD integration: Add these checks to your pipeline
+# 4. Regular security audits: bandit -r . && pip-audit
+#
+# ============================================================================
