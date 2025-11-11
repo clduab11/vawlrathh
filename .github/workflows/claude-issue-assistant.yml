@@ -45,7 +45,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install anthropic==0.39.0 PyGithub==2.1.1 PyYAML==6.0.1
+          pip install "anthropic>=0.18.0,<1.0.0" PyGithub==2.1.1 PyYAML==6.0.1
 
       - name: Analyze issue with Claude
         env:
