@@ -224,7 +224,7 @@ To update Claude integration:
 ### Documentation
 
 - [CLAUDE.md](../CLAUDE.md) - Usage guide
-- [README.md](../../README.md) - Project documentation
+- [README.md](../README.md) - Project documentation
 - [Anthropic Documentation](https://docs.anthropic.com/)
 - [GitHub Actions Documentation](https://docs.github.com/actions)
 
