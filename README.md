@@ -1,491 +1,342 @@
-# arena-improver
+# Arena Improver
 
-Hackathon submission for LiquidMetal/Raindrop submission.
+**MCP for Magic: The Gathering Arena** - AI-powered deck analysis and optimization platform
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
-[![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
-[![Pre-commit: enabled](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://pre-commit.com/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
-## Table of Contents
+## 🎯 Overview
 
-- [Overview](#overview)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Development Setup](#development-setup)
-- [Code Quality](#code-quality)
-- [Testing](#testing)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [License](#license)
+Arena Improver is a comprehensive Model Context Protocol (MCP) server for Magic: The Gathering Arena deck analysis. It combines AI-powered recommendations, historical performance tracking, and semantic card similarity to help players optimize their decks and improve win rates.
 
-## Overview
+### Key Features
 
-This project follows modern Python best practices as of November 2025, including:
+- **📊 CSV Import**: Accepts deck exports from Steam MTG Arena in CSV format
+- **🔍 Deck Analysis**: 
+  - Mana curve optimization
+  - Card synergy detection
+  - Meta matchup predictions
+  - Color distribution analysis
+- **🧠 AI Integration**:
+  - **SmartSQL**: Persistent deck storage with SQLite/SQLAlchemy
+  - **SmartInference**: OpenAI-powered deck optimization suggestions
+  - **SmartMemory**: Historical performance tracking and trend analysis
+- **🚀 Vultr GPU**: Card similarity embeddings using sentence transformers
+- **🌐 FastAPI**: RESTful API endpoints for deck upload and analysis
+- **📈 Win-Rate Predictions**: ML-based performance predictions
+- **🔌 MCP Protocol**: Full Model Context Protocol implementation
 
-- **Modern Dependency Management**: Using `pyproject.toml` (PEP 621) with pinned versions
-- **Code Quality Tools**: Ruff (linter & formatter), MyPy (type checking), Bandit (security)
-- **Automated Workflows**: Pre-commit hooks for consistent code quality
-- **Comprehensive Testing**: Pytest with coverage reporting
-- **Security First**: Regular dependency audits and secrets detection
-- **Editor Integration**: EditorConfig for consistent coding styles
+## 🚀 Quick Start
 
-## Requirements
+### Prerequisites
 
-- **Python**: 3.11 or higher
-- **pip**: Latest version recommended
-- **Git**: For version control and pre-commit hooks
+- Python 3.9 or higher
+- Docker (optional, for containerized deployment)
+- OpenAI API key (optional, for AI recommendations)
+- Vultr API key (optional, for cloud GPU embeddings)
 
-## Installation
-
-### Quick Start
+### Installation
 
 1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/yourusername/arena-improver.git
-   cd arena-improver
-   ```
-
-2. Create and activate a virtual environment:
-
-   ```bash
-   # Using venv (built-in)
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-   # Or using pyenv
-   pyenv virtualenv 3.11.10 arena-improver
-   pyenv local arena-improver
-   ```
-
-3. Install production dependencies:
-
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
-
-## Development Setup
-
-### Install Development Dependencies
-
 ```bash
-# Option 1: Using requirements files
-pip install -r requirements.txt -r requirements-dev.txt
-
-# Option 2: Using pyproject.toml (recommended)
-pip install -e ".[dev]"
-
-# Option 3: Using Makefile (easiest)
-make dev
+git clone https://github.com/clduab11/arena-improver.git
+cd arena-improver
 ```
 
-### Setup Pre-commit Hooks
-
-Pre-commit hooks automatically run code quality checks before each commit:
-
+2. Install dependencies:
 ```bash
-# Install hooks
-pre-commit install
-pre-commit install --hook-type commit-msg
-
-# Or using Makefile
-make hooks
-
-# Run manually on all files
-pre-commit run --all-files
-```
-
-### Available Development Tools
-
-| Tool         | Purpose                       | Command                  |
-| ------------ | ----------------------------- | ------------------------ |
-| **Ruff**     | Fast linting & formatting     | `ruff check .`           |
-| **MyPy**     | Static type checking          | `mypy .`                 |
-| **Pytest**   | Testing framework             | `pytest`                 |
-| **Bandit**   | Security vulnerability scan   | `bandit -r .`            |
-| **Pip-audit** | Dependency vulnerability scan | `pip-audit`              |
-| **Black**    | Code formatter                | `black .`                |
-| **isort**    | Import statement organizer    | `isort .`                |
-| **Coverage** | Code coverage measurement     | `pytest --cov=.`         |
-
-## Code Quality
-
-### Automated Checks
-
-All code quality checks are automated through pre-commit hooks and can be run manually:
-
-```bash
-# Run all checks (recommended before committing)
-make check
-
-# Individual checks
-make lint           # Run all linters
-make type-check     # Run type checking
-make security       # Run security scans
-make format         # Format code
-```
-
-### Code Style
-
-This project follows:
-
-- **PEP 8**: Python style guide
-- **PEP 484**: Type hints
-- **PEP 257**: Docstring conventions
-- **Ruff**: Fast linting and formatting (100 character line length)
-- **Black-compatible**: Code formatting
-
-### Type Checking
-
-All code should include type hints:
-
-```python
-def example_function(name: str, count: int) -> list[str]:
-    """Example of proper type hints."""
-    return [name] * count
-```
-
-Run type checking:
-
-```bash
-mypy .
-# Or
-make type-check
-```
-
-## Testing
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest
-
-# With coverage report
-pytest --cov=arena_improver --cov-report=html
-
-# Run specific test file
-pytest tests/test_example.py
-
-# Run tests in parallel (faster)
-pytest -n auto
-
-# Or using Makefile
-make test                # Basic test run
-make test-coverage       # With coverage report
-make test-fast          # Parallel execution
-```
-
-### Test Structure
-
-```
-tests/
-├── unit/              # Unit tests
-├── integration/       # Integration tests
-├── conftest.py        # Pytest configuration
-└── fixtures/          # Test fixtures
-```
-
-### Writing Tests
-
-```python
-import pytest
-
-def test_example():
-    """Example test with docstring."""
-    assert 1 + 1 == 2
-
-@pytest.mark.parametrize("input,expected", [
-    (1, 2),
-    (2, 4),
-])
-def test_parameterized(input: int, expected: int):
-    """Example of parameterized test."""
-    assert input * 2 == expected
-```
-
-## Documentation
-
-### Building Documentation
-
-```bash
-# Using Sphinx
-cd docs
-make html
-python -m http.server 8000 --directory _build/html
-
-# Using MkDocs
-mkdocs serve
-
-# Or using Makefile
-make docs           # Build docs
-make docs-serve     # Serve locally
-```
-
-## Dependency Management
-
-### Philosophy
-
-This project follows November 2025 best practices for Python dependency management:
-
-1. **Pinned Versions**: All dependencies have exact versions for reproducibility
-2. **Separate Dev Dependencies**: Development tools isolated from production
-3. **Regular Updates**: Dependencies are reviewed and updated regularly
-4. **Security First**: Regular vulnerability scans using pip-audit and safety
-5. **Modern Tools**: Support for pip-tools, uv, poetry, and pdm
-
-### Managing Dependencies
-
-#### Adding New Dependencies
-
-```bash
-# For production dependencies
-echo "package-name==1.0.0" >> requirements.txt
 pip install -r requirements.txt
-
-# For development dependencies
-echo "package-name==1.0.0" >> requirements-dev.txt
-pip install -r requirements-dev.txt
 ```
 
-#### Updating Dependencies
-
+3. Set up environment variables:
 ```bash
-# Using pip-tools (recommended)
-pip-compile --upgrade requirements.in
-
-# Using pip directly (be cautious)
-pip install --upgrade package-name
-
-# Check for outdated packages
-pip list --outdated
+cp .env.example .env
+# Edit .env with your API keys
 ```
 
-#### Security Audits
-
+4. Initialize the database:
 ```bash
-# Scan for known vulnerabilities
-pip-audit
-
-# Alternative security scanner
-safety check
-
-# Or using Makefile
-make security
-make deps-audit
+python -c "import asyncio; from src.services.smart_sql import SmartSQLService; asyncio.run(SmartSQLService().init_db())"
 ```
 
-### Alternative Dependency Managers
+### Running the Services
 
-This project supports modern Python dependency managers:
+#### FastAPI Server
 
-#### Using uv (Ultra-fast installer)
-
+Start the REST API server:
 ```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install dependencies
-uv pip install -r requirements.txt
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### Using Poetry
+Access the API documentation at: `http://localhost:8000/docs`
 
+#### MCP Server
+
+Run the MCP protocol server:
 ```bash
-# Convert to Poetry
-poetry init
-poetry add $(cat requirements.txt)
+python -m src.mcp_server
 ```
 
-#### Using PDM
+#### Docker Deployment
 
+Build and run with Docker Compose:
 ```bash
-# Convert to PDM
-pdm init
-pdm add $(cat requirements.txt)
+docker-compose up --build
 ```
 
-## Project Structure
+## 📖 Usage
+
+### FastAPI Endpoints
+
+#### Upload a Deck (CSV)
+```bash
+curl -X POST "http://localhost:8000/api/v1/upload/csv" \
+  -F "file=@my_deck.csv"
+```
+
+#### Upload a Deck (Text Format)
+```bash
+curl -X POST "http://localhost:8000/api/v1/upload/text" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deck_string": "4 Lightning Bolt (M11) 146\n20 Mountain (ZNR) 381",
+    "format": "Standard"
+  }'
+```
+
+#### Analyze a Deck
+```bash
+curl -X POST "http://localhost:8000/api/v1/analyze/1"
+```
+
+#### Optimize a Deck
+```bash
+curl -X POST "http://localhost:8000/api/v1/optimize/1"
+```
+
+#### Get Deck Statistics
+```bash
+curl -X GET "http://localhost:8000/api/v1/stats/1"
+```
+
+#### Record Match Performance
+```bash
+curl -X POST "http://localhost:8000/api/v1/performance/1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "opponent_archetype": "Mono-Red Aggro",
+    "result": "win",
+    "games_won": 2,
+    "games_lost": 1,
+    "notes": "Sideboard strategy worked well"
+  }'
+```
+
+### MCP Tools
+
+The MCP server provides the following tools:
+
+- `parse_deck_csv` - Parse deck from CSV export
+- `parse_deck_text` - Parse deck from Arena text format
+- `analyze_deck` - Analyze deck composition
+- `optimize_deck` - Get AI-powered optimization suggestions
+- `get_deck_stats` - Retrieve historical performance
+- `record_match` - Log match results
+- `find_similar_cards` - Find cards using embeddings
+- `list_decks` - List all stored decks
+
+### Example Workflow
+
+```python
+import asyncio
+from src.services.deck_analyzer import DeckAnalyzer
+from src.services.smart_sql import SmartSQLService
+from src.utils.csv_parser import parse_deck_string
+
+async def analyze_my_deck():
+    # Parse a deck
+    deck_string = """
+    4 Lightning Bolt (M11) 146
+    4 Monastery Swiftspear (KTK) 118
+    20 Mountain (ZNR) 381
+    """
+    
+    deck = parse_deck_string(deck_string)
+    
+    # Store in database
+    sql_service = SmartSQLService()
+    await sql_service.init_db()
+    deck_id = await sql_service.store_deck(deck)
+    
+    # Analyze
+    analyzer = DeckAnalyzer()
+    analysis = analyzer.analyze_deck(deck)
+    
+    print(f"Overall Score: {analysis.overall_score}/100")
+    print(f"Strengths: {analysis.strengths}")
+    print(f"Weaknesses: {analysis.weaknesses}")
+
+asyncio.run(analyze_my_deck())
+```
+
+## 🏗️ Architecture
 
 ```
 arena-improver/
-├── .editorconfig              # Editor configuration
-├── .gitignore                 # Git ignore patterns
-├── .pre-commit-config.yaml    # Pre-commit hooks configuration
-├── .python-version            # Python version for pyenv
-├── .secrets.baseline          # Secrets detection baseline
-├── .yamllint.yaml             # YAML linting configuration
-├── LICENSE                    # AGPLv3 license
-├── Makefile                   # Development commands
-├── README.md                  # This file
-├── pyproject.toml             # Project configuration (PEP 621)
-├── requirements.txt           # Production dependencies
-├── requirements-dev.txt       # Development dependencies
-├── arena_improver/            # Main package (to be created)
-│   ├── __init__.py
-│   └── ...
-└── tests/                     # Test suite (to be created)
-    ├── __init__.py
-    └── ...
+├── src/
+│   ├── models/          # Pydantic models and database schemas
+│   │   ├── deck.py      # Deck, Card, Analysis models
+│   │   └── database.py  # SQLAlchemy models
+│   ├── services/        # Core business logic
+│   │   ├── deck_analyzer.py      # Deck analysis engine
+│   │   ├── smart_sql.py          # Database operations
+│   │   ├── smart_inference.py    # AI recommendations
+│   │   ├── smart_memory.py       # Performance tracking
+│   │   └── embeddings.py         # Card similarity
+│   ├── api/             # FastAPI routes
+│   │   └── routes.py
+│   ├── utils/           # Utility functions
+│   │   ├── csv_parser.py
+│   │   └── mana_calculator.py
+│   ├── main.py          # FastAPI application
+│   └── mcp_server.py    # MCP protocol server
+├── tests/
+│   ├── unit/            # Unit tests
+│   └── integration/     # Integration tests
+├── data/                # SQLite database storage
+├── requirements.txt
+├── pyproject.toml
+├── Dockerfile
+└── docker-compose.yml
 ```
 
-## Makefile Commands
+## 🧪 Testing
 
-The project includes a comprehensive Makefile for common tasks:
-
-| Command               | Description                              |
-| --------------------- | ---------------------------------------- |
-| `make help`           | Show all available commands              |
-| `make install`        | Install production dependencies          |
-| `make dev`            | Install development dependencies         |
-| `make hooks`          | Install pre-commit hooks                 |
-| `make lint`           | Run all linters                          |
-| `make format`         | Format code                              |
-| `make type-check`     | Run type checking                        |
-| `make security`       | Run security checks                      |
-| `make test`           | Run tests                                |
-| `make test-coverage`  | Run tests with coverage                  |
-| `make check`          | Run all checks (lint + type + test)      |
-| `make ci`             | Run full CI pipeline locally             |
-| `make clean`          | Clean build artifacts and cache          |
-| `make deps-audit`     | Audit dependencies for vulnerabilities   |
-
-Run `make help` to see all available commands.
-
-## Contributing
-
-### Development Workflow
-
-1. **Create a feature branch**:
-
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. **Make your changes** with proper type hints and tests
-
-3. **Run quality checks**:
-
-   ```bash
-   make check
-   ```
-
-4. **Commit using conventional commits**:
-
-   ```bash
-   git commit -m "feat: add new feature"
-   ```
-
-   Commit types:
-
-   - `feat`: New feature
-   - `fix`: Bug fix
-   - `docs`: Documentation changes
-   - `style`: Code style changes (formatting, etc.)
-   - `refactor`: Code refactoring
-   - `test`: Test changes
-   - `chore`: Build process or auxiliary tool changes
-
-5. **Push and create a pull request**:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-### Code Review Checklist
-
-- [ ] Code follows project style (Ruff + Black)
-- [ ] All tests pass
-- [ ] Type hints are included
-- [ ] Documentation is updated
-- [ ] Security checks pass
-- [ ] No new vulnerabilities introduced
-- [ ] Pre-commit hooks pass
-
-## CI/CD Integration
-
-This project is configured for easy CI/CD integration. Example configurations:
-
-### GitHub Actions
-
-```yaml
-name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: make dev
-      - run: make ci
-```
-
-### GitLab CI
-
-```yaml
-test:
-  image: python:3.11
-  script:
-    - make dev
-    - make ci
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Import errors after installation**:
+Run the test suite:
 
 ```bash
-pip install -e .
+# All tests
+pytest
+
+# Unit tests only
+pytest tests/unit/
+
+# Integration tests only
+pytest tests/integration/
+
+# With coverage
+pytest --cov=src --cov-report=html
 ```
 
-**Pre-commit hooks failing**:
+## 📊 Analysis Features
+
+### Mana Curve Analysis
+- Distribution visualization
+- Average and median CMC
+- Curve scoring (0-100)
+- Recommendations for optimization
+
+### Card Synergies
+- Automatic synergy detection
+- Combo identification
+- Support relationships
+- Anti-synergy warnings
+
+### Meta Matchup Analysis
+- Win rate predictions vs. meta archetypes
+- Favorable/unfavorable matchup identification
+- Sideboard suggestions per matchup
+- Key cards for each matchup
+
+### Performance Tracking
+- Match-by-match history
+- Win rate statistics
+- Matchup-specific performance
+- Trend analysis over time
+- Learning insights
+
+## 🤖 AI Features
+
+### SmartInference
+Uses OpenAI GPT-4 to:
+- Generate specific card suggestions
+- Explain reasoning for each suggestion
+- Predict impact of changes
+- Estimate win rate improvements
+
+### SmartMemory
+Tracks and learns from:
+- Historical match results
+- Performance trends
+- Archetype-specific outcomes
+- Deck evolution over time
+
+### Embeddings
+Semantic card similarity using:
+- Sentence transformers
+- Vector embeddings
+- Cosine similarity
+- Replacement card suggestions
+
+## 🔧 Configuration
+
+### Environment Variables
 
 ```bash
-pre-commit clean
-pre-commit install
-pre-commit run --all-files
+# OpenAI API (for AI recommendations)
+OPENAI_API_KEY=your_key_here
+
+# Vultr API (for GPU embeddings)
+VULTR_API_KEY=your_key_here
+
+# Database
+DATABASE_URL=sqlite:///./data/arena_improver.db
 ```
 
-**Type checking errors**:
+## 📦 Docker
+
+### Build and Run
 
 ```bash
-mypy --install-types
+docker build -t arena-improver .
+docker run -p 8000:8000 -p 8001:8001 \
+  -e OPENAI_API_KEY=your_key \
+  -v $(pwd)/data:/app/data \
+  arena-improver
 ```
 
-**Dependency conflicts**:
+### Docker Compose
 
 ```bash
-pip install --force-reinstall -r requirements.txt
+docker-compose up -d
 ```
 
-## Resources
+## 🤝 Contributing
 
-- [PEP 8 - Style Guide](https://peps.python.org/pep-0008/)
-- [PEP 484 - Type Hints](https://peps.python.org/pep-0484/)
-- [PEP 621 - Project Metadata](https://peps.python.org/pep-0621/)
-- [Ruff Documentation](https://docs.astral.sh/ruff/)
-- [MyPy Documentation](https://mypy.readthedocs.io/)
-- [Pytest Documentation](https://docs.pytest.org/)
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
-See [LICENSE](LICENSE) file for details.
+## 📝 License
 
-## Contact
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) - see the [LICENSE](LICENSE) file for details.
 
-For questions or issues, please open an issue on the GitHub repository.
+## 🙏 Acknowledgments
+
+- Magic: The Gathering Arena by Wizards of the Coast
+- OpenAI for GPT models
+- Sentence Transformers for embeddings
+- FastAPI framework
+- Model Context Protocol (MCP) specification
+
+## 📧 Contact
+
+Project Link: [https://github.com/clduab11/arena-improver](https://github.com/clduab11/arena-improver)
 
 ---
 
-**Last Updated**: 2025-11-11
-**Python Version**: 3.11+
-**Maintained by**: Arena Improver Team
+**Hackathon Submission**: LiquidMetal/Raindrop

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2025-11-11
+
+#### License Correction
+
+- **All Project Files**: Corrected license from MIT to AGPL-3.0 to match LICENSE file
+  - Updated README.md license badge from MIT to AGPL v3
+  - Updated README.md License section from MIT to AGPL-3.0
+  - Updated pyproject.toml license field from MIT to AGPL-3.0
+  - Ensures consistency across all documentation and metadata
+
+### Merged - 2025-11-11
+
+#### MTG Arena Deck Analyzer Integration
+
+- **Merged main branch**: Integrated complete MTG Arena deck analysis implementation
+  - FastAPI REST API for deck upload and analysis
+  - MCP protocol server implementation
+  - SmartSQL: SQLite database with SQLAlchemy ORM
+  - SmartInference: OpenAI-powered optimization suggestions
+  - SmartMemory: Historical performance tracking
+  - Card similarity embeddings using sentence transformers
+  - CSV deck import from Steam MTG Arena
+  - Comprehensive test suite (unit + integration tests)
+  - Docker deployment support
+  - Example workflows and sample data
+
 ### Added - November 2025 Best Practices Implementation
 
 #### Dependency Management
