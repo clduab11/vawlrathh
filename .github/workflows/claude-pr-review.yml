@@ -36,6 +36,8 @@ jobs:
             let prNumber;
             if (context.eventName === 'pull_request') {
               prNumber = context.payload.pull_request.number;
+            } else if (context.eventName === 'pull_request_review_comment') {
+              prNumber = context.payload.pull_request.number;
             } else if (context.payload.issue) {
               prNumber = context.payload.issue.number;
             }
