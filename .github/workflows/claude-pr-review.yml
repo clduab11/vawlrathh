@@ -17,6 +17,7 @@ jobs:
   claude-review:
     name: Claude Code Review
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: |
       (github.event_name == 'pull_request') ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude')) ||
@@ -88,7 +89,8 @@ jobs:
         if: steps.check_trigger.outputs.auto_review == 'true'
         run: |
           pip install --upgrade pip
-          pip install anthropic PyGithub
+          # anthropic>=0.18.0 fixes Client init issue, <1.0.0 prevents breaking changes
+          pip install "anthropic>=0.18.0,<1.0.0" PyGithub==2.1.1 PyYAML==6.0.1
 
       - name: Run Claude Code Review
         if: steps.check_trigger.outputs.auto_review == 'true'
@@ -108,11 +110,17 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const GITHUB_COMMENT_MAX_LENGTH = 65000;  // Leave buffer below 65536 limit
 
             let reviewComment = '## 🤖 Claude Code Review\n\n';
 
             if (fs.existsSync('claude_review.md')) {
-              reviewComment += fs.readFileSync('claude_review.md', 'utf8');
+              let response = fs.readFileSync('claude_review.md', 'utf8');
+              // GitHub comment limit is 65536 characters
+              if (response.length > GITHUB_COMMENT_MAX_LENGTH) {
+                response = response.substring(0, GITHUB_COMMENT_MAX_LENGTH) + '\n\n[Truncated - see artifacts for full review]';
+              }
+              reviewComment += response;
             } else {
               reviewComment += '✅ No issues found. Code looks good!\n\n';
               reviewComment += '**Review completed successfully.**';

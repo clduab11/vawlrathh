@@ -14,6 +14,7 @@ jobs:
   claude-assist:
     name: Claude Issue Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: |
       (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'claude-review')) ||
       (github.event_name == 'issue_comment' && !github.event.issue.pull_request && contains(github.event.comment.body, '@claude'))
@@ -44,7 +45,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install anthropic PyGithub
+          # anthropic>=0.18.0 fixes Client init issue, <1.0.0 prevents breaking changes
+          pip install "anthropic>=0.18.0,<1.0.0" PyGithub==2.1.1 PyYAML==6.0.1
 
       - name: Analyze issue with Claude
         env:
@@ -60,11 +62,17 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const GITHUB_COMMENT_MAX_LENGTH = 65000;  // Leave buffer below 65536 limit
 
             let response = '## 🤖 Claude Issue Analysis\n\n';
 
             if (fs.existsSync('claude_issue_response.md')) {
-              response += fs.readFileSync('claude_issue_response.md', 'utf8');
+              let analysisText = fs.readFileSync('claude_issue_response.md', 'utf8');
+              // GitHub comment limit is 65536 characters
+              if (analysisText.length > GITHUB_COMMENT_MAX_LENGTH) {
+                analysisText = analysisText.substring(0, GITHUB_COMMENT_MAX_LENGTH) + '\n\n[Truncated - see artifacts for full analysis]';
+              }
+              response += analysisText;
             } else {
               response += '✅ Analysis completed.\n\n';
               response += 'I\'ve analyzed this issue. See the workflow logs for details.';
