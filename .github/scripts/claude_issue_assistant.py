@@ -161,15 +161,14 @@ class ClaudeIssueAssistant:
             print(f"Warning: Could not access repository: {e.status}")
             return "No code files referenced"
 
-        # Sanitize issue body and limit length
-        safe_body = issue_body[:self.MAX_ISSUE_BODY_LENGTH]
-        
-        # Try to find file references in the issue body
+        # Extract file paths from full body first (before truncation)
+        # to avoid cutting off file references at arbitrary positions
         # Look for patterns like: src/file.py, file.py:123, etc.
         # Using a more restrictive pattern to prevent injection
         file_pattern = r'(?:src/)?[\w/]+\.py(?::\d+)?'
         try:
-            files = re.findall(file_pattern, safe_body)
+            # Extract from full body to avoid missing file paths due to truncation
+            files = re.findall(file_pattern, issue_body)
         except re.error as e:
             print(f"Warning: Regex error: {e}")
             return "No code files referenced"
@@ -178,8 +177,13 @@ class ClaudeIssueAssistant:
         for file_ref in files[:self.MAX_CODE_FILES]:
             file_path = file_ref.split(':')[0]
             
-            # Validate file path to prevent path traversal
+            # Validate file path to prevent path traversal and other attacks
+            # Check for dangerous patterns in the extracted path
             if '..' in file_path or file_path.startswith('/'):
+                continue
+            
+            # Additional validation: ensure path doesn't exceed reasonable length
+            if len(file_path) > 200:
                 continue
                 
             try:
