@@ -330,7 +330,7 @@ class MetaIntelligenceService:
                 strategy_distribution.get(arch.strategy_type, 0) + arch.meta_share
 
         # Identify dominant strategy
-        dominant_strategy = max(strategy_distribution.items(), key=lambda x: x[1])
+        dominant_strategy = max(strategy_distribution.items(), key=lambda x: x[1], default=(None, 0.0))
 
         # Calculate average win rates by strategy
         strategy_winrates = {}
