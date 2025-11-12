@@ -95,7 +95,7 @@ class MetaIntelligenceService:
                 logger.debug("Cache timestamp was naive, converted to UTC")
             elif cache_time.tzinfo != timezone.utc:
                 cache_time = cache_time.astimezone(timezone.utc)
-                logger.debug("Cache timestamp converted from %s to UTC", cache_time.tzinfo)
+                logger.debug("Cache timestamp converted from %s to UTC", cache_time.tzinfo.tzname(cache_time))
             if (datetime.now(timezone.utc) - cache_time).total_seconds() < self.cache_duration:
                 return cached
 
