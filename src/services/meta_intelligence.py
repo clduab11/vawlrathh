@@ -69,11 +69,10 @@ class MetaIntelligenceService:
         self.cache: Dict[str, MetaSnapshot] = {}
         try:
             self.cache_duration = int(os.getenv("META_UPDATE_FREQUENCY", "24")) * 3600
-        except (ValueError, TypeError) as e:
-            env_val = os.getenv('META_UPDATE_FREQUENCY')
+        except ValueError as e:
+            env_val = os.getenv('META_UPDATE_FREQUENCY', "24")
             raise ValueError(
-                f"Invalid META_UPDATE_FREQUENCY: '{env_val}' is not a valid integer. "
-                f"Expected a numeric value, got {type(env_val).__name__}"
+                f"Invalid META_UPDATE_FREQUENCY: '{env_val}' is not a valid integer."
             ) from e
         self.meta_sources = os.getenv(
             "META_SOURCES",
