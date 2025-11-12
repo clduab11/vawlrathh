@@ -84,6 +84,8 @@ class MetaIntelligenceService:
         if cache_key in self.cache:
             cached = self.cache[cache_key]
             cache_time = datetime.fromisoformat(cached.timestamp)
+            if cache_time.tzinfo is None:
+                cache_time = cache_time.replace(tzinfo=timezone.utc)
             if (datetime.now(timezone.utc) - cache_time).total_seconds() < self.cache_duration:
                 return cached
 
