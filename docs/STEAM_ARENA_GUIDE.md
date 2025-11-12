@@ -37,10 +37,23 @@ curl -X POST "http://localhost:8000/api/v1/upload/csv" \
 ### Example Upload via MCP
 
 ```python
-# Using the MCP tool
-result = await mcp_tool("parse_deck_csv", {
-    "csv_content": open("my_deck.csv").read()
-})
+# Using the MCP server tools (requires MCP-compatible client like Claude Desktop)
+# The parse_deck_csv tool is exposed by the Arena Improver MCP server
+# Call this from your MCP client with:
+# Tool: parse_deck_csv
+# Arguments: {"csv_content": "<your CSV content>"}
+
+# Or use the Python services directly:
+from src.utils.csv_parser import parse_arena_csv
+from src.services.smart_sql import SmartSQLService
+
+sql_service = SmartSQLService()
+await sql_service.init_db()
+
+with open("my_deck.csv") as f:
+    deck = parse_arena_csv(f.read())
+    deck_id = await sql_service.store_deck(deck)
+    print(f"Deck stored with ID: {deck_id}")
 ```
 
 ## Steam-Specific Considerations
@@ -122,14 +135,28 @@ result = await mcp_tool("parse_deck_csv", {
 
 ## Integration with Arena Improver Features
 
+### Prerequisites
+
+Before running the code examples below, ensure you have the necessary services initialized. Add this setup code at the beginning of your script:
+
+```python
+from src.services.meta_intelligence import MetaIntelligenceService
+from src.services.smart_sql import SmartSQLService
+
+# Initialize services
+meta_service = MetaIntelligenceService()
+sql_service = SmartSQLService()
+
+# Initialize the database (run once)
+await sql_service.init_db()
+```
+
 ### Real-Time Meta Analysis
 
 Arena Improver uses MCP tools to fetch current meta data specific to Arena:
 
 ```python
-from src.services.meta_intelligence import MetaIntelligenceService
-
-meta_service = MetaIntelligenceService()
+# Assuming meta_service is initialized (see Prerequisites above)
 snapshot = await meta_service.get_current_meta("Standard")
 
 print(f"Current top archetype: {snapshot.archetypes[0].name}")
@@ -155,6 +182,7 @@ This enables:
 Track your performance specifically on Steam:
 
 ```python
+# Assuming sql_service is initialized (see Prerequisites above)
 await sql_service.record_performance(
     deck_id=1,
     opponent_archetype="Boros Convoke",
@@ -170,6 +198,7 @@ await sql_service.record_performance(
 Use the MetaIntelligenceService for strategy decisions:
 
 ```python
+# Assuming meta_service is initialized (see Prerequisites above)
 # Get matchup data for your deck
 matchups = await meta_service.get_archetype_matchup_data(
     deck_archetype="Dimir Midrange",
