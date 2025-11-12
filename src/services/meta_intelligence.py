@@ -353,7 +353,7 @@ class MetaIntelligenceService:
             "strategy_distribution": {
                 k: round(v, 2) for k, v in strategy_distribution.items()
             },
-            "dominant_strategy": dominant_strategy[0],
+            "dominant_strategy": dominant_strategy[0] or "N/A",
             "dominant_strategy_share": round(dominant_strategy[1], 2),
             "avg_winrates_by_strategy": {
                 k: round(v, 2) for k, v in avg_strategy_winrates.items()
