@@ -293,6 +293,9 @@ Arena Improver is **optimized for MTG Arena on Steam** with platform-specific fe
 Arena Improver uses **Tavily and Exa MCPs** to fetch live meta data:
 
 ```python
+import asyncio
+from src.services.meta_intelligence import MetaIntelligenceService
+
 # Automatic meta data fetching
 async def example():
     meta_service = MetaIntelligenceService()
@@ -305,6 +308,8 @@ async def example():
     # - Emerging archetypes
     
     return snapshot
+
+asyncio.run(example())
 ```
 
 ### Sequential Thinking for Complex Decisions
