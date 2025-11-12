@@ -187,9 +187,10 @@ class DeckAnalyzer:
         except Exception as e:
             logger.warning("Could not fetch meta data: %s", e, exc_info=True)
             # Check if we have cached data we can use
-            if hasattr(self.meta_service, 'cache') and deck.format in self.meta_service.cache:
+            cache_key = f"meta_{deck.format.lower()}"
+            if hasattr(self.meta_service, 'cache') and cache_key in self.meta_service.cache:
                 logger.info("Using cached meta data as fallback")
-                cached = self.meta_service.cache[deck.format]
+                cached = self.meta_service.cache[cache_key]
                 for archetype in cached.archetypes:
                     win_rate = self._estimate_matchup_winrate_enhanced(deck, archetype)
                     favorable = win_rate >= 50.0
