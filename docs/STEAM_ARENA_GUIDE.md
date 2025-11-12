@@ -126,14 +126,36 @@ async with aiofiles.open("my_deck.csv", mode='r') as f:
 
 ## Integration with Arena Improver Features
 
+### Prerequisites
+
+Before running the code examples below, ensure you have the necessary services initialized. The following code uses async/await and should be placed inside an async function or executed using `asyncio.run()` (see `examples/example_workflow.py` for a complete example):
+
+```python
+import asyncio
+from src.services.meta_intelligence import MetaIntelligenceService
+from src.services.smart_sql import SmartSQLService
+
+async def main():
+    # Initialize services
+    meta_service = MetaIntelligenceService()
+    sql_service = SmartSQLService()
+    
+    # Initialize the database (creates tables if they don't exist)
+    await sql_service.init_db()
+    
+    # Your code using the services goes here
+    # ...
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
 ### Real-Time Meta Analysis
 
 Arena Improver uses MCP tools to fetch current meta data specific to Arena:
 
 ```python
-from src.services.meta_intelligence import MetaIntelligenceService
-
-meta_service = MetaIntelligenceService()
+# Assuming meta_service is initialized (see Prerequisites above)
 snapshot = await meta_service.get_current_meta("Standard")
 
 print(f"Current top archetype: {snapshot.archetypes[0].name}")
@@ -159,6 +181,7 @@ This enables:
 Track your performance specifically on Steam:
 
 ```python
+# Assuming sql_service is initialized (see Prerequisites above)
 await sql_service.record_performance(
     deck_id=1,
     opponent_archetype="Boros Convoke",
@@ -174,6 +197,7 @@ await sql_service.record_performance(
 Use the MetaIntelligenceService for strategy decisions:
 
 ```python
+# Assuming meta_service is initialized (see Prerequisites above)
 # Get matchup data for your deck
 matchups = await meta_service.get_archetype_matchup_data(
     deck_archetype="Dimir Midrange",
