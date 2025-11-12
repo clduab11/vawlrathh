@@ -147,7 +147,7 @@ from src.services.smart_sql import SmartSQLService
 meta_service = MetaIntelligenceService()
 sql_service = SmartSQLService()
 
-# Initialize the database (run once)
+# Initialize the database (creates tables if they don't exist)
 await sql_service.init_db()
 ```
 
