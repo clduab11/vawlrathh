@@ -99,7 +99,7 @@ class MetaIntelligenceService:
             tournament_results=tournaments,
             ban_list_updates=ban_updates,
             meta_trends=trends,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
 
         # Update cache
