@@ -160,11 +160,13 @@ class DeckAnalyzer:
         """Analyze matchups against meta archetypes using real-time meta data.
         
         Returns:
-            List[MetaMatchup]: List of matchups, or empty list if meta data unavailable.
+            List[MetaMatchup]: List of matchups. Returns cached matchups if live fetch 
+            fails and cache is available, or empty list if no cache exists.
             
         Note:
-            Returns empty list on error rather than using fallback data to ensure
-            analysis accuracy. Check logs for error details.
+            Attempts to use cached meta data as fallback when live fetch fails.
+            Returns empty list only when both live fetch and cache fallback fail.
+            Check logs for error details.
         """
         matchups = []
 
