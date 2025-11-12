@@ -10,13 +10,22 @@ from ..models.deck import (
 )
 from .meta_intelligence import MetaIntelligenceService
 
+logger = logging.getLogger(__name__)
+
 
 class DeckAnalyzer:
     """Analyzes MTG Arena decks for optimization opportunities."""
 
     def __init__(self, meta_service: Optional[MetaIntelligenceService] = None):
-        self.meta_service = meta_service or MetaIntelligenceService()
+        self._meta_service = meta_service
         self.meta_archetypes = []  # Will be loaded dynamically
+    
+    @property
+    def meta_service(self) -> MetaIntelligenceService:
+        """Lazy initialization of MetaIntelligenceService."""
+        if self._meta_service is None:
+            self._meta_service = MetaIntelligenceService()
+        return self._meta_service
     
     async def analyze_deck(self, deck: Deck) -> DeckAnalysis:
         """Perform comprehensive deck analysis."""
@@ -184,10 +193,10 @@ class DeckAnalyzer:
         base_rate = 50.0
 
         # Identify deck strategy type based on mana curve and card types
+        non_land_cards = sum(card.quantity for card in deck.mainboard
+                            if card.card_type.lower() != 'land')
         avg_cmc = sum(card.cmc * card.quantity for card in deck.mainboard
-                     if card.card_type.lower() != 'land') / max(1, sum(
-                         card.quantity for card in deck.mainboard
-                         if card.card_type.lower() != 'land'))
+                     if card.card_type.lower() != 'land') / max(1, non_land_cards)
 
         deck_strategy = self._identify_deck_strategy(deck, avg_cmc)
 
