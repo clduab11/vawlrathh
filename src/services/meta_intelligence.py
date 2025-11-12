@@ -87,7 +87,7 @@ class MetaIntelligenceService:
         if cache_key in self.cache:
             cached = self.cache[cache_key]
             cache_time = datetime.fromisoformat(cached.timestamp)
-            if not cache_time.tzinfo:
+            if cache_time.tzinfo is None:
                 cache_time = cache_time.replace(tzinfo=timezone.utc)
             if (datetime.now(timezone.utc) - cache_time).total_seconds() < self.cache_duration:
                 return cached
@@ -149,7 +149,7 @@ class MetaIntelligenceService:
                     "Can struggle against control"
                 ],
                 source="mtggoldfish.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Boros Convoke",
@@ -175,7 +175,7 @@ class MetaIntelligenceService:
                     "Limited reach in late game"
                 ],
                 source="aetherhub.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Domain Ramp",
@@ -201,7 +201,7 @@ class MetaIntelligenceService:
                     "Weak to mana denial"
                 ],
                 source="mtggoldfish.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Mono-Red Aggro",
@@ -227,7 +227,7 @@ class MetaIntelligenceService:
                     "Struggles against early blockers"
                 ],
                 source="mtggoldfish.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Esper Legends",
@@ -253,7 +253,7 @@ class MetaIntelligenceService:
                     "Can be outvalued by dedicated control"
                 ],
                 source="aetherhub.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Azorius Control",
@@ -279,7 +279,7 @@ class MetaIntelligenceService:
                     "Struggles with recursive threats"
                 ],
                 source="mtggoldfish.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             )
         ]
 
@@ -292,7 +292,7 @@ class MetaIntelligenceService:
         return [
             TournamentResult(
                 event_name="Pro Tour Thunder Junction",
-                date=(datetime.utcnow() - timedelta(days=5)).isoformat(),
+                date=(datetime.now(timezone.utc) - timedelta(days=5)).isoformat(),
                 format=format,
                 winning_deck="Boros Convoke",
                 archetype="aggro",
@@ -300,7 +300,7 @@ class MetaIntelligenceService:
             ),
             TournamentResult(
                 event_name="Arena Championship 6",
-                date=(datetime.utcnow() - timedelta(days=12)).isoformat(),
+                date=(datetime.now(timezone.utc) - timedelta(days=12)).isoformat(),
                 format=format,
                 winning_deck="Dimir Midrange",
                 archetype="midrange"
