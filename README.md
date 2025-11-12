@@ -294,14 +294,17 @@ Arena Improver uses **Tavily and Exa MCPs** to fetch live meta data:
 
 ```python
 # Automatic meta data fetching
-meta_service = MetaIntelligenceService()
-snapshot = await meta_service.get_current_meta("Standard")
-
-# Access live data:
-# - Current meta shares from MTGGoldfish
-# - Tournament results and winning decklists
-# - Ban list updates
-# - Emerging archetypes
+async def example():
+    meta_service = MetaIntelligenceService()
+    snapshot = await meta_service.get_current_meta("Standard")
+    
+    # Access live data:
+    # - Current meta shares from MTGGoldfish
+    # - Tournament results and winning decklists
+    # - Ban list updates
+    # - Emerging archetypes
+    
+    return snapshot
 ```
 
 ### Sequential Thinking for Complex Decisions
