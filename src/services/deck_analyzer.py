@@ -2,6 +2,7 @@
 
 from typing import List, Dict, Optional
 import statistics
+import logging
 
 from ..models.deck import (
     Deck, Card, DeckAnalysis, ManaCurve, CardSynergy,
@@ -167,9 +168,6 @@ class DeckAnalyzer:
                 )
                 matchups.append(matchup)
         except Exception as e:
-            # A logger should be injected into the class instance.
-            # For this example, we'll import it directly.
-            import logging
             logging.warning("Could not fetch meta data: %s", e, exc_info=True)
             # Return empty or use fallback heuristics
             pass
