@@ -7,7 +7,7 @@ tournament results, and professional deck strategies from various sources.
 import os
 import json
 from typing import List, Dict, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, asdict
 import asyncio
 
