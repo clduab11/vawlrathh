@@ -177,21 +177,8 @@ class DeckAnalyzer:
                 )
                 matchups.append(matchup)
         except Exception as e:
-            logger.warning("Could not fetch meta data, using fallback archetypes: %s", e, exc_info=True)
-            # Use fallback archetypes
-            fallback_archetypes = self.meta_service._get_fallback_archetypes(deck.format)
-            for archetype in fallback_archetypes:
-                win_rate = self._estimate_matchup_winrate_enhanced(deck, archetype)
-                favorable = win_rate >= 50.0
-
-                matchup = MetaMatchup(
-                    archetype=archetype.name,
-                    win_rate=win_rate,
-                    favorable=favorable,
-                    key_cards=archetype.key_cards[:5],
-                    sideboard_suggestions=[]
-                )
-                matchups.append(matchup)
+            logging.warning("Could not fetch meta data: %s", e, exc_info=True)
+            # Return empty or use fallback heuristics
 
         return matchups
     
