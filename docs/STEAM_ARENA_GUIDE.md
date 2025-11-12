@@ -137,18 +137,26 @@ with open("my_deck.csv") as f:
 
 ### Prerequisites
 
-Before running the code examples below, ensure you have the necessary services initialized. Add this setup code at the beginning of your script:
+Before running the code examples below, ensure you have the necessary services initialized. The following code uses async/await and should be placed inside an async function or executed using `asyncio.run()` (see `examples/example_workflow.py` for a complete example):
 
 ```python
+import asyncio
 from src.services.meta_intelligence import MetaIntelligenceService
 from src.services.smart_sql import SmartSQLService
 
-# Initialize services
-meta_service = MetaIntelligenceService()
-sql_service = SmartSQLService()
+async def main():
+    # Initialize services
+    meta_service = MetaIntelligenceService()
+    sql_service = SmartSQLService()
+    
+    # Initialize the database (creates tables if they don't exist)
+    await sql_service.init_db()
+    
+    # Your code using the services goes here
+    # ...
 
-# Initialize the database (creates tables if they don't exist)
-await sql_service.init_db()
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ### Real-Time Meta Analysis
