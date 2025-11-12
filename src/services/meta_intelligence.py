@@ -441,13 +441,30 @@ class MetaIntelligenceService:
         }
 
         # Explicit mapping from archetype name to strategy type for known archetypes
+        # Updated for November 2025 MTG Arena Standard meta
         strategy_map = {
+            # Current Tier 1 Archetypes (November 2025)
+            "Mono-Red Aggro": "aggro",
+            "Izzet Cauldron": "combo",
             "Dimir Midrange": "midrange",
+            "Simic Aggro": "aggro",
+            "Simic Omniscience": "combo",
+            "Jeskai Artifacts": "midrange",
+            "Jeskai Control": "control",
+            "4 Color Control": "control",
+            "4C Control": "control",
+            "Sultai Reanimator": "combo",
+            "Grixis Reanimator": "combo",
+            "Gruul Aggro": "aggro",
+            "Mono-Green Landfall": "aggro",
+            "Mono-Black Demons": "midrange",
+            "Azorius Control": "control",
+            "Orzhov Lifegain": "midrange",
+            "Temur Battlecrier": "aggro",
+            # Legacy/Common Archetypes
             "Boros Convoke": "aggro",
             "Domain Ramp": "control",
-            "Mono-Red Aggro": "aggro",
             "Esper Legends": "midrange",
-            "Azorius Control": "control",
         }
         
         # Check explicit map first
