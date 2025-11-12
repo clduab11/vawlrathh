@@ -11,6 +11,8 @@ from .services.smart_sql import SmartSQLService
 from .services.smart_inference import SmartInferenceService
 from .services.smart_memory import SmartMemoryService
 from .services.embeddings import EmbeddingsService
+from .services.scryfall_service import ScryfallService
+from .services.card_market_service import CardMarketService
 from .utils.csv_parser import parse_deck_string, parse_arena_csv
 
 
@@ -19,6 +21,8 @@ sql_service = SmartSQLService()
 analyzer = DeckAnalyzer()
 inference_service = SmartInferenceService()
 embeddings_service = EmbeddingsService()
+scryfall_service = ScryfallService()
+card_market_service = CardMarketService(scryfall_service)
 
 # Create MCP server
 mcp_server = Server("arena-improver")
@@ -211,14 +215,80 @@ async def handle_list_decks(arguments: dict) -> list[TextContent]:
     """Handle list_decks tool call."""
     format_filter = arguments.get("format")
     decks = await sql_service.list_decks(format=format_filter)
-    
+
     if not decks:
         return [TextContent(type="text", text="No decks found")]
-    
+
     result = "Stored Decks:\n"
     for deck in decks:
         result += f"- ID {deck['id']}: {deck['name']} ({deck['format']}) - {deck['created_at']}\n"
-    
+
+    return [TextContent(type="text", text=result)]
+
+
+async def handle_find_card_market_links(arguments: dict) -> list[TextContent]:
+    """Handle find_card_market_links tool call."""
+    deck_id = arguments["deck_id"]
+    exclude_arena_only = arguments.get("exclude_arena_only", True)
+
+    deck = await sql_service.get_deck(deck_id)
+
+    if not deck:
+        return [TextContent(type="text", text=f"Deck {deck_id} not found")]
+
+    # Prepare card list with quantities
+    cards = [
+        (card.name, card.quantity, card.set_code)
+        for card in deck.mainboard
+    ]
+
+    # Get market info for the deck
+    market_info = await card_market_service.get_deck_market_info(
+        cards,
+        exclude_arena_only=exclude_arena_only
+    )
+
+    result = f"""Physical Card Purchase Information for '{deck.name}'
+{'='*60}
+
+Total Cards: {market_info['total_cards']}
+Purchasable in Paper: {market_info['purchasable_cards']}
+Arena-Only Cards: {market_info['arena_only_cards']}
+
+💵 Total Estimated Cost: ${market_info['total_price_usd']:.2f} USD
+📊 Average Card Price: ${market_info['summary']['avg_card_price_usd']:.2f} USD
+
+"""
+
+    if market_info['arena_only']:
+        result += "⚠️  Arena-Only Cards (Not Purchasable):\n"
+        for card in market_info['arena_only']:
+            result += f"  • {card['quantity']}x {card['card_name']}\n"
+        result += "\n"
+
+    result += "🛒 Purchasable Cards:\n"
+    result += "-" * 60 + "\n"
+
+    for card in market_info['cards'][:20]:  # Limit to first 20 for readability
+        result += f"\n{card['quantity']}x {card['card_name']}\n"
+        result += f"  Price: ${card['unit_price_usd']:.2f} each (${card['total_price_usd']:.2f} total)\n"
+        result += f"  Best Vendor: {card['best_vendor']}\n"
+
+        if card.get('vendors'):
+            result += "  Available at:\n"
+            for vendor in card['vendors']:
+                if vendor['in_stock'] and vendor['purchase_url']:
+                    price_str = f"${vendor['price_usd']:.2f}" if vendor['price_usd'] else f"€{vendor['price_eur']:.2f}"
+                    result += f"    - {vendor['vendor_name']}: {price_str} - {vendor['purchase_url']}\n"
+
+    if len(market_info['cards']) > 20:
+        result += f"\n... and {len(market_info['cards']) - 20} more cards\n"
+
+    result += "\n" + "=" * 60 + "\n"
+    result += "💡 Vendor Price Comparison (if buying all from one vendor):\n"
+    for vendor, total in market_info['summary']['cheapest_vendor_breakdown'].items():
+        result += f"  • {vendor}: ${total:.2f}\n"
+
     return [TextContent(type="text", text=result)]
 
 
@@ -372,6 +442,25 @@ async def list_tools() -> list[Tool]:
                     }
                 }
             }
+        ),
+        Tool(
+            name="find_card_market_links",
+            description="Find physical card purchase links and pricing (excludes Arena-only cards). Shows vendor prices from TCGPlayer, CardMarket, etc.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "deck_id": {
+                        "type": "integer",
+                        "description": "Database ID of the deck"
+                    },
+                    "exclude_arena_only": {
+                        "type": "boolean",
+                        "description": "Exclude Arena-only cards from results (default: true)",
+                        "default": True
+                    }
+                },
+                "required": ["deck_id"]
+            }
         )
     ]
 
@@ -389,6 +478,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         "record_match": handle_record_match,
         "find_similar_cards": handle_find_similar_cards,
         "list_decks": handle_list_decks,
+        "find_card_market_links": handle_find_card_market_links,
     }
     
     try:

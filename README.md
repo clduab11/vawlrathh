@@ -1,536 +1,474 @@
 # Arena Improver
 
-**MCP for Magic: The Gathering Arena** - AI-powered deck analysis and optimization platform
+*"Your deck's terrible. Let me show you how to fix it."*
+— **Vawlrathh, The Small'n**
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Hackathon: Vibe.Code.Ship](https://img.shields.io/badge/Hackathon-Vibe.Code.Ship-purple.svg)](https://devpost.com)
 
-## 🎯 Overview
+## 🎯 What This Is
 
-Arena Improver is a comprehensive Model Context Protocol (MCP) server for Magic: The Gathering Arena deck analysis and **strategic optimization**. It leverages cutting-edge MCP integrations (Tavily, Exa, Mem0, Sequential Thinking) to provide **real-time meta intelligence**, AI-powered deck recommendations, and historical performance tracking tailored specifically for MTG Arena on Steam.
+Listen up. I'm **Vawlrathh, The Small'n**—a pint-sized, sharp-tongued version of Volrath, The Fallen. Despite my stature, I know MTG Arena better than you know your own deck (which, frankly, isn't saying much).
 
-**Strategic Focus:** This tool goes beyond basic deck analysis to provide actionable strategic insights based on current meta trends, tournament data, and professional play patterns.
+**Arena Improver** is an MCP-powered deck analysis tool that actually works. It analyzes your janky brews, tells you what's wrong (plenty), and helps you build something that won't embarrass you at FNM.
 
-### Key Features
+Designed for **Steam Arena players** who want to win games, not just collect pretty digital cards.
 
-#### 🎮 Steam Arena Integration
-- **📊 CSV Import**: Native support for Steam MTG Arena deck exports
-- **🖥️ Platform Optimization**: Steam-specific strategy adjustments and matchmaking awareness
-- **📝 Flexible Formats**: Support for both CSV and Arena text format imports
+### What Makes This Not-Garbage
 
-#### 🧠 Advanced MCP-Powered Strategy
-- **🔍 Real-Time Meta Intelligence** (via Tavily/Exa):
-  - Live meta share data from MTGGoldfish, AetherHub
-  - Current tournament results and professional decklists
-  - Ban list updates and format changes
-  - Emerging archetype detection
+- **Physical Card Prices**: Shows you what your Arena deck costs in real cardboard (excludes Arena-only nonsense)
+- **Real-Time Strategy Chat**: Talk to me via WebSocket. I'll tell you the truth, even if you don't want to hear it
+- **AI Consensus Checking**: Two AI brains (mine and a validator) so you don't get bad advice
+- **Sequential Reasoning**: Breaks down complex decisions into steps even you can follow
+- **Full MCP Integration**: Memory, sequential thinking, omnisearch—the works
 
-- **💭 Sequential Thinking** (via MCP):
-  - Multi-step deck building decision analysis
-  - Complex sideboard strategy reasoning
-  - Metagame positioning evaluation
-
-- **🧠 Memory Integration** (via Mem0):
-  - Long-term performance pattern learning
-  - Player-specific strategy preferences
-  - Meta evolution tracking
-  - Successful tech choice memory
-
-#### 📊 Comprehensive Deck Analysis
-- **Mana Curve Optimization**: Ideal CMC distribution analysis
-- **Meta Matchup Predictions**: Win rates vs. current meta archetypes
-- **Card Synergy Detection**: AI-powered combination identification
-- **Color Distribution Analysis**: Mana consistency evaluation
-- **Strategy Type Identification**: Aggro/Midrange/Control classification
-
-#### 🤖 AI-Powered Intelligence
-- **SmartInference**: OpenAI GPT-4 deck optimization with reasoning
-- **SmartMemory**: Historical performance tracking and trend analysis
-- **SmartSQL**: Persistent deck storage with SQLAlchemy
-- **Embeddings**: Card similarity using sentence transformers
-
-#### 🌐 Multiple Interfaces
-- **MCP Protocol**: Full Model Context Protocol implementation
-- **FastAPI**: RESTful API endpoints for web integration
-- **Docker Support**: Containerized deployment ready
+---
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### What You Need
 
-- Python 3.9 or higher
-- Node.js 18+ (for MCP servers via npx)
-- Docker (optional, for containerized deployment)
+Don't skip this part. I hate repeating myself.
 
-**API Keys (obtain from respective providers):**
-- **OpenAI API key** (required for AI recommendations)
-- **Tavily API key** (recommended for meta intelligence) - [Get here](https://tavily.com/)
-- **Exa API key** (recommended for semantic search) - [Get here](https://exa.ai/)
-- Vultr API key (optional, for cloud GPU embeddings)
-- Perplexity, Jina AI, Kagi (optional, for enhanced search)
+- Python 3.9+ (If you're still on 2.7, we have bigger problems)
+- Node.js 18+ (For MCP servers)
+- Docker (Optional, for the lazy)
+
+**API Keys** (Get these or nothing works):
+- **OpenAI**: For the smart stuff
+- **Anthropic**: For consensus checking
+- **Tavily/Exa**: For meta intelligence (highly recommended)
 
 ### Installation
 
-1. Clone the repository:
 ```bash
+# Clone it
 git clone https://github.com/clduab11/arena-improver.git
 cd arena-improver
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-3. Set up environment variables:
-```bash
+# Set up your keys
 cp .env.example .env
-# Edit .env with your API keys
-```
+# Edit .env with your API keys. All of them.
 
-**Required Configuration:**
-- `OPENAI_API_KEY`: For AI-powered deck optimization
-- `TAVILY_API_KEY`: For real-time meta data (highly recommended)
-- `EXA_API_KEY`: For semantic card search (highly recommended)
-
-**Optional Configuration:**
-- `BRAVE_API_KEY`, `PERPLEXITY_API_KEY`, `JINA_AI_API_KEY`: Enhanced search
-- `META_UPDATE_FREQUENCY`: How often to refresh meta data (default: 24 hours)
-- `STEAM_PLATFORM_ENABLED`: Enable Steam-specific optimizations (default: true)
-
-4. Initialize the database:
-```bash
+# Initialize database
 python -c "import asyncio; from src.services.smart_sql import SmartSQLService; asyncio.run(SmartSQLService().init_db())"
 ```
 
-5. **(Recommended)** Set up MCP servers for enhanced strategy features:
+Done? Good. Moving on.
 
-The `mcp_config.json` file at the root contains configuration for:
-- **Memory MCP**: Long-term learning and pattern recognition
-- **Sequential Thinking MCP**: Complex decision analysis
-- **cld-omnisearch MCP**: Real-time meta intelligence via Tavily/Exa
+---
 
-These will be automatically available when using Claude Desktop or other MCP-compatible clients.
+## 💬 Meet Vawlrathh (That's Me)
 
-### Running the Services
+I'm not your friend. I'm your strategic advisor. Here's how I work:
 
-#### FastAPI Server
+### Personality Traits
 
-Start the REST API server:
+- **Dry-Witted**: Sarcasm is my first language
+- **Brusque**: No fluff, no sugar-coating
+- **Pragmatic**: If it works, it's good. If it doesn't, it's trash
+- **Knowledgeable**: Volrath's cunning, just... shorter
+
+### Example Interactions
+
+**You**: "Rate my deck"
+**Me**: "Your mana curve's a disaster. Fix it."
+
+**You**: "Should I play best-of-one or best-of-three?"
+**Me**: "If you have to ask, stick to Bo1. Less time to screw up."
+
+**You**: "What do you think of my sideboard?"
+**Me**: "I've seen better sideboards from goblins. Try again."
+
+---
+
+## 🛠️ Core Features
+
+### 1. Physical Card Purchase Integration
+
+**Problem**: You want to build your Arena deck in paper, but half the cards don't exist.
+
+**Solution**: I check every card, filter out Arena-only garbage, and show you prices from TCGPlayer, CardMarket, and Cardhoarder.
+
 ```bash
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+# Get purchase info for deck ID 1
+curl -X GET "http://localhost:8000/api/v1/purchase/1"
 ```
 
-Access the API documentation at: `http://localhost:8000/docs`
+**Response includes**:
+- Total deck cost (only real cards)
+- Per-card pricing
+- Vendor comparisons
+- Arena-only card warnings
 
-#### MCP Server
+### 2. Real-Time Chat (Talk to Me)
 
-Run the MCP protocol server:
-```bash
-python -m src.mcp_server
+WebSocket endpoint: `ws://localhost:8000/api/v1/ws/chat/{your_id}`
+
+**Message Format**:
+```json
+{
+  "type": "chat",
+  "message": "How do I beat control decks?",
+  "context": {
+    "deck_id": 1
+  }
+}
 ```
 
-#### Docker Deployment
-
-Build and run with Docker Compose:
-```bash
-docker-compose up --build
+**Response**:
+```json
+{
+  "type": "response",
+  "response": "Pack hand disruption. Duress is cheap. Use it.",
+  "consensus_checked": true,
+  "consensus_passed": true
+}
 ```
 
-## 📖 Usage
+If I say something wrong (rare), you'll get a `ConsensusBreaker` warning. Pay attention to those.
 
-### FastAPI Endpoints
+### 3. Deck Analysis That Doesn't Lie
 
-#### Upload a Deck (CSV)
+```bash
+POST /api/v1/analyze/1
+```
+
+Gets you:
+- Mana curve (yours is probably bad)
+- Meta matchups (real tournament data)
+- Card synergies
+- Weaknesses (plenty to choose from)
+- **Physical card purchase info** (automatically included)
+
+### 4. AI-Powered Optimization
+
+```bash
+POST /api/v1/optimize/1
+```
+
+I'll suggest:
+- Cards to add
+- Cards to cut
+- Why each change matters
+- Predicted win rate improvement
+- Purchase links for suggested cards
+
+### 5. Sequential Reasoning
+
+For complex decisions (like "should I build this deck?"), I break it down:
+
+1. What's the win condition?
+2. What are the mana requirements?
+3. Which meta decks do you need to beat?
+4. What are the critical early plays?
+5. What sideboard cards are essential?
+6. What's the optimal curve?
+
+Each step gets analyzed. You get conclusions you can actually use.
+
+---
+
+## 📊 MCP Integration
+
+### Available Tools
+
+I come with 9 MCP tools. Use them.
+
+1. **parse_deck_csv**: Import from Steam Arena
+2. **parse_deck_text**: Import from Arena text format
+3. **analyze_deck**: Full deck analysis
+4. **optimize_deck**: AI-powered suggestions
+5. **get_deck_stats**: Performance history
+6. **record_match**: Track your games
+7. **find_similar_cards**: Embeddings-based search
+8. **list_decks**: See what you've stored
+9. **find_card_market_links**: Get purchase info (NEW!)
+
+### External MCP Servers
+
+Configured in `mcp_config.json`:
+
+- **Memory**: I remember your past mistakes
+- **Sequential Thinking**: For complex reasoning
+- **cld-omnisearch**: Real-time meta data (Tavily/Exa)
+
+---
+
+## 🎮 Steam Arena Focus
+
+This tool is built for Steam Arena. Here's why that matters:
+
+- **CSV Import**: Native Steam export support
+- **Platform-Specific Meta**: Steam ladder is different from Magic Online
+- **Bo1 vs Bo3**: Strategy adjusts based on queue type
+- **Collection Integration**: Coming soon—sync your Steam collection
+
+### Quick Steam Export
+
+1. Open your deck in Arena (Steam version)
+2. Click "Export" → Choose "CSV"
+3. Upload to Arena Improver:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/upload/csv" \
   -F "file=@my_deck.csv"
 ```
 
-#### Upload a Deck (Text Format)
-```bash
-curl -X POST "http://localhost:8000/api/v1/upload/text" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "deck_string": "4 Lightning Bolt (M11) 146\n20 Mountain (ZNR) 381",
-    "format": "Standard"
-  }'
-```
+Done. Moving on.
 
-#### Analyze a Deck
-```bash
-curl -X POST "http://localhost:8000/api/v1/analyze/1"
-```
-
-#### Optimize a Deck
-```bash
-curl -X POST "http://localhost:8000/api/v1/optimize/1"
-```
-
-#### Get Deck Statistics
-```bash
-curl -X GET "http://localhost:8000/api/v1/stats/1"
-```
-
-#### Record Match Performance
-```bash
-curl -X POST "http://localhost:8000/api/v1/performance/1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "opponent_archetype": "Mono-Red Aggro",
-    "result": "win",
-    "games_won": 2,
-    "games_lost": 1,
-    "notes": "Sideboard strategy worked well"
-  }'
-```
-
-### MCP Tools
-
-The MCP server provides the following tools:
-
-- `parse_deck_csv` - Parse deck from CSV export
-- `parse_deck_text` - Parse deck from Arena text format
-- `analyze_deck` - Analyze deck composition
-- `optimize_deck` - Get AI-powered optimization suggestions
-- `get_deck_stats` - Retrieve historical performance
-- `record_match` - Log match results
-- `find_similar_cards` - Find cards using embeddings
-- `list_decks` - List all stored decks
-
-### Example Workflow
-
-```python
-import asyncio
-from src.services.deck_analyzer import DeckAnalyzer
-from src.services.smart_sql import SmartSQLService
-from src.utils.csv_parser import parse_deck_string
-
-async def analyze_my_deck():
-    # Parse a deck
-    deck_string = """
-    4 Lightning Bolt (M11) 146
-    4 Monastery Swiftspear (KTK) 118
-    20 Mountain (ZNR) 381
-    """
-    
-    deck = parse_deck_string(deck_string)
-    
-    # Store in database
-    sql_service = SmartSQLService()
-    await sql_service.init_db()
-    deck_id = await sql_service.store_deck(deck)
-    
-    # Analyze
-    analyzer = DeckAnalyzer()
-    analysis = analyzer.analyze_deck(deck)
-    
-    print(f"Overall Score: {analysis.overall_score}/100")
-    print(f"Strengths: {analysis.strengths}")
-    print(f"Weaknesses: {analysis.weaknesses}")
-
-asyncio.run(analyze_my_deck())
-```
-
-### Strategic Analysis with Meta Intelligence
-
-```python
-import asyncio
-import logging
-from src.services.meta_intelligence import MetaIntelligenceService
-from src.services.deck_analyzer import DeckAnalyzer
-from src.services.smart_sql import SmartSQLService
-
-logger = logging.getLogger(__name__)
-
-async def meta_aware_analysis():
-    # Get current meta snapshot
-    meta_service = MetaIntelligenceService()
-    meta = await meta_service.get_current_meta("Standard")
-
-    print(f"Current Meta:")
-    print(f"- Top Archetype: {meta.archetypes[0].name} ({meta.archetypes[0].meta_share}%)")
-    print(f"- Win Rate: {meta.archetypes[0].win_rate}%")
-    print(f"- Meta Health: {meta.meta_trends['meta_health']}")
-
-    # Analyze deck against current meta
-    analyzer = DeckAnalyzer(meta_service=meta_service)
-    sql_service = SmartSQLService()
-    try:
-        await sql_service.init_db()
-        deck = await sql_service.get_deck(1)
-        analysis = await analyzer.analyze_deck(deck)
-
-        print(f"\nYour Deck vs. Meta:")
-        for matchup in analysis.meta_matchups:
-            status = "✓ Favorable" if matchup.favorable else "✗ Unfavorable"
-            print(f"{status} vs {matchup.archetype}: {matchup.win_rate}%")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
-    finally:
-        await sql_service.close()
-
-asyncio.run(meta_aware_analysis())
-```
-
-## 🎮 Steam Arena Integration
-
-Arena Improver is **optimized for MTG Arena on Steam** with platform-specific features:
-
-- **Native CSV Import**: Direct support for Steam Arena deck exports
-- **Platform Awareness**: Matchmaking and performance tracking specific to Steam
-- **Bo1/Bo3 Optimization**: Automatic strategy adjustment for ladder vs. events
-- **Collection Integration**: Future support for Steam inventory tracking
-
-**See the complete guide:** [Steam Arena Platform Guide](docs/STEAM_ARENA_GUIDE.md)
-
-### Quick Steam Export Guide
-
-1. **In Arena:** Open your deck in the deck builder
-2. **Export:** Click "Export" → Choose "CSV" format
-3. **Upload to Arena Improver:**
-   ```bash
-   curl -X POST "http://localhost:8000/api/v1/upload/csv" \
-     -F "file=@my_deck.csv"
-   ```
-
-## 🧠 MCP-Powered Strategy Features
-
-### Real-Time Meta Intelligence
-
-Arena Improver uses **Tavily and Exa MCPs** to fetch live meta data:
-
-```python
-import asyncio
-from src.services.meta_intelligence import MetaIntelligenceService
-
-# Automatic meta data fetching
-async def example_meta_analysis():
-    meta_service = MetaIntelligenceService()
-    snapshot = await meta_service.get_current_meta("Standard")
-    
-    # Access live data:
-    # - Current meta shares from MTGGoldfish
-    # - Tournament results and winning decklists
-    # - Ban list updates
-    # - Emerging archetypes
-    
-    return snapshot
-
-asyncio.run(example_meta_analysis())
-```
-
-### Sequential Thinking for Complex Decisions
-
-When building or optimizing decks, the **Sequential Thinking MCP** helps break down complex strategy decisions:
-
-- Multi-step deck building reasoning
-- Sideboard strategy planning
-- Meta positioning analysis
-- Archetype selection logic
-
-### Memory-Enhanced Learning
-
-The **Mem0 MCP** provides long-term learning capabilities:
-
-- Remembers your successful strategies
-- Tracks meta evolution over time
-- Learns your playstyle preferences
-- Identifies platform-specific patterns
+---
 
 ## 🏗️ Architecture
 
+Not boring you with flowcharts. Here's what matters:
+
 ```
-arena-improver/
-├── src/
-│   ├── models/          # Pydantic models and database schemas
-│   │   ├── deck.py      # Deck, Card, Analysis models
-│   │   └── database.py  # SQLAlchemy models
-│   ├── services/        # Core business logic
-│   │   ├── deck_analyzer.py         # Deck analysis engine
-│   │   ├── meta_intelligence.py     # ⭐ Real-time meta data service
-│   │   ├── smart_sql.py             # Database operations
-│   │   ├── smart_inference.py       # AI recommendations
-│   │   ├── smart_memory.py          # Performance tracking
-│   │   └── embeddings.py            # Card similarity
-│   ├── api/             # FastAPI routes
-│   │   └── routes.py
-│   ├── utils/           # Utility functions
-│   │   ├── csv_parser.py
-│   │   └── mana_calculator.py
-│   ├── main.py          # FastAPI application
-│   └── mcp_server.py    # MCP protocol server
-├── docs/                # ⭐ Documentation
-│   └── STEAM_ARENA_GUIDE.md  # Steam platform guide
-├── tests/
-│   ├── unit/            # Unit tests
-│   └── integration/     # Integration tests
-├── data/                # SQLite database storage
-├── mcp_config.json      # ⭐ MCP server configuration
-├── requirements.txt
-├── pyproject.toml
-├── Dockerfile
-└── docker-compose.yml
+Your Request
+    ↓
+FastAPI (async, fast)
+    ↓
+├─ Deck Analyzer (mana curves, synergies)
+├─ Card Market Service (Scryfall + pricing)
+├─ Vawlrathh Chat Agent (GPT-4/Haiku + Sonnet consensus)
+├─ Sequential Reasoning (chain-of-thought)
+└─ Event Logger (tracks everything)
+    ↓
+Results (useful ones)
 ```
 
-**⭐ = New strategic enhancements**
+**Key Tech**:
+- Async/await everywhere
+- WebSocket for chat
+- SQLite for storage
+- MCP protocol compliance
+- Full test coverage
+
+---
 
 ## 🧪 Testing
 
-Run the test suite:
+Run the tests. Seriously.
 
 ```bash
 # All tests
 pytest
 
-# Unit tests only
-pytest tests/unit/
-
-# Integration tests only
-pytest tests/integration/
-
 # With coverage
 pytest --cov=src --cov-report=html
+
+# Just unit tests
+pytest tests/unit/
+
+# Just integration tests
+pytest tests/integration/
 ```
 
-## 📊 Analysis Features
+If tests fail, fix your environment before complaining.
 
-### Mana Curve Analysis
-- Distribution visualization
-- Average and median CMC
-- Curve scoring (0-100)
-- Recommendations for optimization
+---
 
-### Card Synergies
-- Automatic synergy detection
-- Combo identification
-- Support relationships
-- Anti-synergy warnings
+## 📦 Running the Services
 
-### Meta Matchup Analysis (Real-Time)
-- **Live meta data** from MTGGoldfish, AetherHub via Tavily/Exa MCPs
-- Win rate predictions vs. **current** meta archetypes (not hardcoded!)
-- Favorable/unfavorable matchup identification based on **real tournament data**
-- Dynamic sideboard suggestions per matchup
-- Key cards for each matchup from professional lists
-- Meta health assessment and diversity tracking
+### FastAPI Server
 
-### Performance Tracking
-- Match-by-match history
-- Win rate statistics
-- Matchup-specific performance
-- Trend analysis over time
-- Learning insights
+```bash
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-## 🤖 AI Features
+API docs at: `http://localhost:8000/docs`
 
-### SmartInference
-Uses OpenAI GPT-4 to:
-- Generate specific card suggestions
-- Explain reasoning for each suggestion
-- Predict impact of changes
-- Estimate win rate improvements
+### MCP Server
 
-### SmartMemory
-Tracks and learns from:
-- Historical match results
-- Performance trends
-- Archetype-specific outcomes
-- Deck evolution over time
+```bash
+python -m src.mcp_server
+```
 
-### Embeddings
-Semantic card similarity using:
-- Sentence transformers
-- Vector embeddings
-- Cosine similarity
-- Replacement card suggestions
+### Docker (For the Lazy)
+
+```bash
+docker-compose up --build
+```
+
+Everything runs. Ports 8000 (API) and 8001 (MCP).
+
+---
+
+## 🎯 Example Workflow
+
+### Complete Demo
+
+Want to see it all work? Run this:
+
+```bash
+python examples/hackathon_demo.py
+```
+
+Shows you:
+1. Physical card purchase lookup
+2. Chat with me (consensus checked)
+3. Sequential reasoning analysis
+4. Event logging summary
+
+Takes 2 minutes. Worth it.
+
+### Manual Workflow
+
+```bash
+# 1. Upload deck
+curl -X POST "http://localhost:8000/api/v1/upload/csv" \
+  -F "file=@mono_red_aggro.csv"
+# Returns: {"deck_id": 1}
+
+# 2. Analyze it
+curl -X POST "http://localhost:8000/api/v1/analyze/1"
+# Gets: analysis + purchase info
+
+# 3. Optimize it
+curl -X POST "http://localhost:8000/api/v1/optimize/1"
+# Gets: suggestions + win rate prediction + purchase links
+
+# 4. Get purchase details
+curl -X GET "http://localhost:8000/api/v1/purchase/1"
+# Gets: Full vendor breakdown
+```
+
+---
 
 ## 🔧 Configuration
 
 ### Environment Variables
 
 ```bash
-# OpenAI API (for AI recommendations)
-OPENAI_API_KEY=your_key_here
+# Required
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_anthropic_key
 
-# Vultr API (for GPU embeddings)
-VULTR_API_KEY=your_key_here
+# Recommended (for real meta data)
+TAVILY_API_KEY=your_tavily_key
+EXA_API_KEY=your_exa_key
+
+# Optional
+BRAVE_API_KEY=your_brave_key
+PERPLEXITY_API_KEY=your_perplexity_key
 
 # Database
 DATABASE_URL=sqlite:///./data/arena_improver.db
 ```
 
-## 📦 Docker
+### MCP Config
 
-### Build and Run
-
-```bash
-docker build -t arena-improver .
-docker run -p 8000:8000 -p 8001:8001 \
-  -e OPENAI_API_KEY=your_key \
-  -v $(pwd)/data:/app/data \
-  arena-improver
-```
-
-### Docker Compose
-
-```bash
-docker-compose up -d
-```
-
-## 📚 Documentation
-
-- **[Steam Arena Platform Guide](docs/STEAM_ARENA_GUIDE.md)**: Complete guide for Steam users
-- **[MCP Configuration](mcp_config.json)**: MCP server setup for Claude Desktop
-- **[API Documentation](http://localhost:8000/docs)**: Interactive API docs (when server running)
-
-## 🎯 Strategy Philosophy
-
-Arena Improver focuses on **actionable strategic insights** rather than just deck statistics:
-
-1. **Meta-Aware**: All recommendations consider the current metagame
-2. **Platform-Specific**: Optimized for Steam Arena's unique environment
-3. **Data-Driven**: Uses real tournament results and professional play data
-4. **Adaptive**: Learns from your playstyle and performance history
-5. **Transparent**: Explains reasoning behind all suggestions
-
-## 🤝 Contributing
-
-Contributions are welcome! Especially:
-
-- **Meta Intelligence**: Enhance web scraping and meta data sources
-- **Strategy Algorithms**: Improve matchup prediction models
-- **MCP Integrations**: Add new MCP capabilities
-- **Steam Features**: Platform-specific enhancements
-- **Testing**: Add test coverage for strategy services
-
-### Development Setup
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Install dev dependencies: `pip install -r requirements.txt`
-4. Run tests: `pytest`
-5. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-6. Push to the branch (`git push origin feature/AmazingFeature`)
-7. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Magic: The Gathering Arena by Wizards of the Coast
-- OpenAI for GPT models
-- Sentence Transformers for embeddings
-- FastAPI framework
-- Model Context Protocol (MCP) specification
-
-## 📧 Contact
-
-Project Link: [https://github.com/clduab11/arena-improver](https://github.com/clduab11/arena-improver)
+Already set up in `mcp_config.json`. Don't touch it unless you know what you're doing.
 
 ---
 
-**Hackathon Submission**: LiquidMetal/Raindrop
+## 📚 Documentation
+
+- **[Hackathon Features](docs/HACKATHON_FEATURES.md)**: Complete feature breakdown
+- **[Steam Arena Guide](docs/STEAM_ARENA_GUIDE.md)**: Platform-specific help
+- **[MCP Security](docs/MCP_SECURITY.md)**: Security best practices
+- **[API Docs](http://localhost:8000/docs)**: Interactive API documentation (when running)
+
+---
+
+## 🤝 Contributing
+
+Want to improve this? Fine. Here's how:
+
+1. Fork it
+2. Create a feature branch: `git checkout -b feature/YourFeature`
+3. Write tests (or I'll reject it)
+4. Make sure tests pass: `pytest`
+5. Commit: `git commit -m 'Add YourFeature'`
+6. Push: `git push origin feature/YourFeature`
+7. Open a Pull Request
+
+### What I Want
+
+- Meta intelligence improvements
+- More purchase vendor integrations
+- Better matchup prediction models
+- MCP tool enhancements
+- Bug fixes (obviously)
+
+### What I Don't Want
+
+- Unnecessary complexity
+- Features without tests
+- Breaking changes without discussion
+- Bad code (you know what I mean)
+
+---
+
+## 🎖️ Hackathon Submission
+
+**Event**: Vibe. Code. Ship. - LiquidMetal Edition
+**Submission**: Arena Improver with Vawlrathh Integration
+
+### Key Differentiators
+
+1. **Dual AI Agent System**: Primary chat + consensus validation
+2. **Physical Card Integration**: Arena-only filtering + vendor pricing
+3. **Character-Driven UX**: Vawlrathh's personality (me)
+4. **Sequential Reasoning**: Multi-step decision analysis
+5. **Event Logging**: Complete audit trail for judging
+6. **Full MCP Depth**: Memory, sequential thinking, omnisearch
+
+### Metrics
+
+Run `examples/hackathon_demo.py` to generate:
+- Event logs (`data/events/hackathon_demo_export.json`)
+- Performance statistics
+- Feature demonstrations
+
+---
+
+## 📝 License
+
+AGPL-3.0. Don't steal it. Contribute instead.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Magic: The Gathering Arena**: For existing (and being on Steam)
+- **OpenAI**: For GPT models
+- **Anthropic**: For Claude (consensus checking)
+- **Scryfall**: For card data API
+- **FastAPI**: For not being garbage
+- **Model Context Protocol**: For making MCP integration possible
+
+---
+
+## 📧 Contact
+
+**GitHub**: [https://github.com/clduab11/arena-improver](https://github.com/clduab11/arena-improver)
+**Issues**: Use GitHub Issues. Be specific.
+**Email**: Don't. Use GitHub Issues.
+
+---
+
+## 💭 Final Thoughts from Vawlrathh
+
+Look, your deck's probably still bad. But with this tool, at least you'll know *why* it's bad and *how* to fix it.
+
+I don't do participation trophies. I do win rates.
+
+Use the sequential reasoning for complex decisions. Talk to me via WebSocket for quick advice. Check purchase prices before you waste money on paper cards you don't need.
+
+And for the love of Phyrexia, **read the error messages** before asking for help.
+
+Now go build something decent.
+
+— **Vawlrathh, The Small'n**
+*Diminutive in size, not in strategic prowess*
+
+---
+
+**P.S.** If you're reading this far down, you might actually care about winning. Good. The demo's at `examples/hackathon_demo.py`. Run it. Learn something.
+
+**P.P.S.** Your mana curve still needs work.

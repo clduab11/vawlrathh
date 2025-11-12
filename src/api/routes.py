@@ -10,6 +10,8 @@ from ..services.smart_sql import SmartSQLService
 from ..services.smart_inference import SmartInferenceService
 from ..services.smart_memory import SmartMemoryService
 from ..services.embeddings import EmbeddingsService
+from ..services.scryfall_service import ScryfallService
+from ..services.card_market_service import CardMarketService
 from ..utils.csv_parser import parse_arena_csv, parse_deck_string
 
 
@@ -20,6 +22,8 @@ sql_service = SmartSQLService()
 analyzer = DeckAnalyzer()
 inference_service = SmartInferenceService()
 embeddings_service = EmbeddingsService()
+scryfall_service = ScryfallService()
+card_market_service = CardMarketService(scryfall_service)
 
 
 class DeckUploadRequest(BaseModel):
@@ -34,6 +38,7 @@ class OptimizationResponse(BaseModel):
     suggestions: list[DeckSuggestion]
     predicted_win_rate: float
     confidence: float
+    purchase_info: Optional[dict] = None
 
 
 class PerformanceRecordRequest(BaseModel):
@@ -129,48 +134,76 @@ async def list_decks(format: Optional[str] = None):
     return decks
 
 
-@router.post("/analyze/{deck_id}", response_model=DeckAnalysis)
-async def analyze_deck(deck_id: int):
+@router.post("/analyze/{deck_id}", response_model=dict)
+async def analyze_deck(deck_id: int, include_purchase_info: bool = True):
     """Analyze a deck for strengths, weaknesses, and opportunities."""
     # Get deck from database
     deck = await sql_service.get_deck(deck_id)
-    
+
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found")
-    
+
     # Perform analysis
     analysis = await analyzer.analyze_deck(deck)
-    
-    return analysis
+
+    response = {
+        "analysis": analysis
+    }
+
+    # Add purchase info if requested
+    if include_purchase_info:
+        cards = [
+            (card.name, card.quantity, card.set_code)
+            for card in deck.mainboard
+        ]
+        purchase_info = await card_market_service.get_deck_market_info(
+            cards,
+            exclude_arena_only=True
+        )
+        response["purchase_info"] = purchase_info
+
+    return response
 
 
 @router.post("/optimize/{deck_id}", response_model=OptimizationResponse)
-async def optimize_deck(deck_id: int):
+async def optimize_deck(deck_id: int, include_purchase_info: bool = True):
     """
     Optimize a deck with AI-powered suggestions.
-    
-    Returns analysis, suggestions, and predicted win rate.
+
+    Returns analysis, suggestions, predicted win rate, and optional purchase info.
     """
     # Get deck from database
     deck = await sql_service.get_deck(deck_id)
-    
+
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found")
-    
+
     # Perform analysis
     analysis = await analyzer.analyze_deck(deck)
-    
+
     # Generate suggestions
     suggestions = await inference_service.generate_suggestions(deck, analysis)
-    
+
     # Predict win rate
     prediction = await inference_service.predict_win_rate(deck, suggestions)
-    
+
+    purchase_info = None
+    if include_purchase_info:
+        cards = [
+            (card.name, card.quantity, card.set_code)
+            for card in deck.mainboard
+        ]
+        purchase_info = await card_market_service.get_deck_market_info(
+            cards,
+            exclude_arena_only=True
+        )
+
     return OptimizationResponse(
         analysis=analysis,
         suggestions=suggestions,
         predicted_win_rate=prediction.get("predicted_win_rate", 50.0),
-        confidence=prediction.get("confidence", 0.5)
+        confidence=prediction.get("confidence", 0.5),
+        purchase_info=purchase_info
     )
 
 
@@ -254,6 +287,38 @@ async def find_similar_decks(deck_id: int, limit: int = 5):
     
     return {
         "similar_decks": similarities[:limit]
+    }
+
+
+@router.get("/purchase/{deck_id}", response_model=dict)
+async def get_purchase_info(deck_id: int, exclude_arena_only: bool = True):
+    """
+    Get physical card purchase information for a deck.
+
+    Excludes Arena-only cards by default and provides vendor pricing.
+    """
+    # Get deck from database
+    deck = await sql_service.get_deck(deck_id)
+
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found")
+
+    # Prepare card list
+    cards = [
+        (card.name, card.quantity, card.set_code)
+        for card in deck.mainboard
+    ]
+
+    # Get market info
+    purchase_info = await card_market_service.get_deck_market_info(
+        cards,
+        exclude_arena_only=exclude_arena_only
+    )
+
+    return {
+        "deck_id": deck_id,
+        "deck_name": deck.name,
+        **purchase_info
     }
 
 
