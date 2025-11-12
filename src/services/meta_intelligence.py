@@ -6,12 +6,15 @@ tournament results, and professional deck strategies from various sources.
 
 import os
 import json
+import logging
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, asdict
 import asyncio
 
 from ..models.deck import Deck
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -84,6 +87,8 @@ class MetaIntelligenceService:
         if cache_key in self.cache:
             cached = self.cache[cache_key]
             cache_time = datetime.fromisoformat(cached.timestamp)
+            if not cache_time.tzinfo:
+                cache_time = cache_time.replace(tzinfo=timezone.utc)
             if (datetime.now(timezone.utc) - cache_time).total_seconds() < self.cache_duration:
                 return cached
 
@@ -321,6 +326,18 @@ class MetaIntelligenceService:
         self, archetypes: List[MetaArchetype]
     ) -> Dict[str, Any]:
         """Analyze meta trends from archetype data."""
+        # Guard against empty archetypes
+        if not archetypes:
+            return {
+                "total_archetypes": 0,
+                "covered_meta_share": 0.0,
+                "strategy_distribution": {},
+                "dominant_strategy": None,
+                "dominant_strategy_share": 0.0,
+                "avg_winrates_by_strategy": {},
+                "meta_health": self._assess_meta_health([])
+            }
+
         total_share = sum(arch.meta_share for arch in archetypes)
 
         # Calculate strategy type distribution
@@ -328,6 +345,18 @@ class MetaIntelligenceService:
         for arch in archetypes:
             strategy_distribution[arch.strategy_type] = \
                 strategy_distribution.get(arch.strategy_type, 0) + arch.meta_share
+
+        # Guard against empty strategy distribution
+        if not strategy_distribution:
+            return {
+                "total_archetypes": len(archetypes),
+                "covered_meta_share": round(total_share, 2),
+                "strategy_distribution": {},
+                "dominant_strategy": None,
+                "dominant_strategy_share": 0.0,
+                "avg_winrates_by_strategy": {},
+                "meta_health": self._assess_meta_health(archetypes)
+            }
 
         # Identify dominant strategy
         dominant_strategy = max(strategy_distribution.items(), key=lambda x: x[1], default=(None, 0.0))
@@ -345,6 +374,7 @@ class MetaIntelligenceService:
         avg_strategy_winrates = {
             strat: strategy_winrates[strat] / strategy_counts[strat]
             for strat in strategy_winrates
+            if strategy_counts[strat] > 0
         }
 
         return {
@@ -483,6 +513,48 @@ class MetaIntelligenceService:
                 "reason": "Good against target archetype",
                 "quantity": 2
             }
+        ]
+
+    def _get_fallback_archetypes(self, format: str) -> List[MetaArchetype]:
+        """Provide fallback archetypes when meta data fetching fails."""
+        logger.info("Using fallback archetypes for %s", format)
+        return [
+            MetaArchetype(
+                name="Generic Aggro",
+                format=format,
+                meta_share=20.0,
+                win_rate=50.0,
+                key_cards=["Aggressive Creature", "Burn Spell"],
+                strategy_type="aggro",
+                strengths=["Fast clock", "Punishes slow decks"],
+                weaknesses=["Runs out of resources", "Vulnerable to sweepers"],
+                source="fallback",
+                last_updated=datetime.now(timezone.utc).isoformat()
+            ),
+            MetaArchetype(
+                name="Generic Midrange",
+                format=format,
+                meta_share=30.0,
+                win_rate=50.0,
+                key_cards=["Value Creature", "Removal Spell"],
+                strategy_type="midrange",
+                strengths=["Flexible gameplay", "Good threats"],
+                weaknesses=["Can be too slow or too fast"],
+                source="fallback",
+                last_updated=datetime.now(timezone.utc).isoformat()
+            ),
+            MetaArchetype(
+                name="Generic Control",
+                format=format,
+                meta_share=25.0,
+                win_rate=50.0,
+                key_cards=["Counterspell", "Board Wipe"],
+                strategy_type="control",
+                strengths=["Strong late game", "Answers to threats"],
+                weaknesses=["Vulnerable to aggro", "Resource-intensive"],
+                source="fallback",
+                last_updated=datetime.now(timezone.utc).isoformat()
+            )
         ]
 
     def to_dict(self, meta: MetaSnapshot) -> dict:
