@@ -7,7 +7,7 @@ tournament results, and professional deck strategies from various sources.
 import os
 import json
 from typing import List, Dict, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, asdict
 import asyncio
 
@@ -84,7 +84,7 @@ class MetaIntelligenceService:
         if cache_key in self.cache:
             cached = self.cache[cache_key]
             cache_time = datetime.fromisoformat(cached.timestamp)
-            if (datetime.utcnow() - cache_time).total_seconds() < self.cache_duration:
+            if (datetime.now(timezone.utc) - cache_time).total_seconds() < self.cache_duration:
                 return cached
 
         # Fetch fresh data using MCPs
@@ -99,7 +99,7 @@ class MetaIntelligenceService:
             tournament_results=tournaments,
             ban_list_updates=ban_updates,
             meta_trends=trends,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
 
         # Update cache
@@ -144,7 +144,7 @@ class MetaIntelligenceService:
                     "Can struggle against control"
                 ],
                 source="mtggoldfish.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Boros Convoke",
@@ -170,7 +170,7 @@ class MetaIntelligenceService:
                     "Limited reach in late game"
                 ],
                 source="aetherhub.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Domain Ramp",
@@ -196,7 +196,7 @@ class MetaIntelligenceService:
                     "Weak to mana denial"
                 ],
                 source="mtggoldfish.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Mono-Red Aggro",
@@ -222,7 +222,7 @@ class MetaIntelligenceService:
                     "Struggles against early blockers"
                 ],
                 source="mtggoldfish.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Esper Legends",
@@ -248,7 +248,7 @@ class MetaIntelligenceService:
                     "Can be outvalued by dedicated control"
                 ],
                 source="aetherhub.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             ),
             MetaArchetype(
                 name="Azorius Control",
@@ -274,7 +274,7 @@ class MetaIntelligenceService:
                     "Struggles with recursive threats"
                 ],
                 source="mtggoldfish.com",
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(timezone.utc).isoformat()
             )
         ]
 
@@ -287,7 +287,7 @@ class MetaIntelligenceService:
         return [
             TournamentResult(
                 event_name="Pro Tour Thunder Junction",
-                date=(datetime.utcnow() - timedelta(days=5)).isoformat(),
+                date=(datetime.now(timezone.utc) - timedelta(days=5)).isoformat(),
                 format=format,
                 winning_deck="Boros Convoke",
                 archetype="aggro",
@@ -295,7 +295,7 @@ class MetaIntelligenceService:
             ),
             TournamentResult(
                 event_name="Arena Championship 6",
-                date=(datetime.utcnow() - timedelta(days=12)).isoformat(),
+                date=(datetime.now(timezone.utc) - timedelta(days=12)).isoformat(),
                 format=format,
                 winning_deck="Dimir Midrange",
                 archetype="midrange"
