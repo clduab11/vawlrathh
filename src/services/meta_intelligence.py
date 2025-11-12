@@ -64,7 +64,10 @@ class MetaIntelligenceService:
 
     def __init__(self):
         self.cache: Dict[str, MetaSnapshot] = {}
-        self.cache_duration = int(os.getenv("META_UPDATE_FREQUENCY", "24")) * 3600
+        try:
+            self.cache_duration = int(os.getenv("META_UPDATE_FREQUENCY", "24")) * 3600
+        except ValueError:
+            raise ValueError("Invalid META_UPDATE_FREQUENCY: must be an integer")
         self.meta_sources = os.getenv(
             "META_SOURCES",
             "https://www.mtggoldfish.com/metagame/standard,https://aetherhub.com/Metagame/Standard-BO3"
