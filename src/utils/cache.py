@@ -204,13 +204,7 @@ class PersistentCache:
             return data.get('value')
 
         try:
-            # Only use lock for checking existence, actual I/O in thread
-            async with self._lock:
-                exists = cache_path.exists()
-            
-            if not exists:
-                return None
-                
+            # No need to check existence under lock; _read_and_check handles it
             # Perform blocking I/O in thread pool
             return await asyncio.to_thread(_read_and_check)
 
