@@ -54,6 +54,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(router, prefix="/api/v1", tags=["decks"])
+app.include_router(ws_router, prefix="/api/v1", tags=["chat"])
 
 
 @app.get("/")
@@ -64,7 +65,14 @@ async def root():
         "version": __version__,
         "description": "MCP for MTG Arena deck analysis",
         "docs": "/docs",
-        "mcp_server": "Use mcp_server.py for MCP protocol access"
+        "mcp_server": "Use mcp_server.py for MCP protocol access",
+        "chat": "WebSocket chat at /api/v1/ws/chat/{client_id}",
+        "features": [
+            "Deck analysis & optimization",
+            "Physical card purchase links",
+            "Real-time chat with Vawlrathh, The Small'n",
+            "AI consensus checking"
+        ]
     }
 
 
