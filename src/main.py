@@ -17,6 +17,14 @@ from . import __version__
 
 logger = logging.getLogger(__name__)
 
+# Module-level psutil Process instance for accurate CPU monitoring
+# Creating a new Process per request causes cpu_percent() to return 0.0
+# because it needs to measure CPU usage over time
+_process = psutil.Process()
+# Prime the CPU percent baseline by calling once with None
+# This establishes the initial measurement point
+_process.cpu_percent(None)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -138,19 +146,18 @@ async def metrics():
     meta_stats = meta_cache.stats()
     deck_stats = deck_cache.stats()
 
-    # Get system metrics
-    process = psutil.Process()
-    memory_info = process.memory_info()
+    # Get system metrics using module-level process instance
+    memory_info = _process.memory_info()
 
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": __version__,
         "system": {
-            "cpu_percent": process.cpu_percent(),
+            "cpu_percent": _process.cpu_percent(),
             "memory_mb": memory_info.rss / 1024 / 1024,
-            "memory_percent": process.memory_percent(),
-            "num_threads": process.num_threads(),
-            "open_files": len(process.open_files()),
+            "memory_percent": _process.memory_percent(),
+            "num_threads": _process.num_threads(),
+            "open_files": len(_process.open_files()),
         },
         "cache": {
             "meta": {
