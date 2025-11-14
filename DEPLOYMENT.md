@@ -431,7 +431,7 @@ uvicorn src.main:app --port 8001
 curl http://localhost:8000/health
 
 # Test API endpoint
-curl http://localhost:8000/api/v1/status
+curl http://localhost:8000/status
 
 # Check CORS settings in src/main.py
 ```
