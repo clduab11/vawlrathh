@@ -240,6 +240,7 @@ The HF Space runs two servers:
 │   FastAPI Server (Port 7860)        │
 │   ├─ /health                        │
 │   ├─ /docs (Interactive API)        │
+│   ├─ /api/v1/ws/chat/* (WebSocket)  │
 │   └─ /api/v1/* (All endpoints)      │
 └─────────────────────────────────────┘
 ```
