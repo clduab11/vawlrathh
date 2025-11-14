@@ -118,7 +118,7 @@ uvicorn src.main:app --reload --port 8000
 Access:
 - API Docs: http://localhost:8000/docs
 - Health Check: http://localhost:8000/health
-- WebSocket Chat: ws://localhost:8000/api/v1/ws/chat/your-id
+- WebSocket Chat Endpoint: ws://localhost:8000/api/v1/ws/chat/{client_id}
 
 #### Option B: Full HF Space Setup (Gradio + FastAPI)
 
@@ -240,8 +240,8 @@ The HF Space runs two servers:
 │   FastAPI Server (Port 7860)        │
 │   ├─ /health                        │
 │   ├─ /docs (Interactive API)        │
-│   ├─ /api/v1/* (All endpoints)      │
-│   └─ /api/v1/ws/chat/* (WebSocket)  │
+│   ├─ /api/v1/ws/chat/* (WebSocket)  │
+│   └─ /api/v1/* (All endpoints)      │
 └─────────────────────────────────────┘
 ```
 
@@ -289,7 +289,7 @@ services:
 
 Run:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Cloud Platform Deployment
@@ -382,9 +382,8 @@ cat .env
 # Verify environment variables are loaded
 python -c "import os; print(os.getenv('OPENAI_API_KEY'))"
 
-# If None, reload environment:
-source .env  # Linux/Mac
-# Or restart your terminal
+# If None, restart your terminal to reload environment variables
+# The application loads .env automatically on startup
 ```
 
 #### "Database Not Initialized" Error
@@ -425,15 +424,15 @@ uvicorn src.main:app --port 8001
 
 #### WebSocket Connection Failed
 
-**Problem**: Cannot connect to chat endpoint
+**Problem**: Cannot connect to API endpoint
 
 **Solutions**:
 ```bash
 # Check if FastAPI is running
 curl http://localhost:8000/health
 
-# Test WebSocket endpoint
-wscat -c ws://localhost:8000/api/v1/ws/chat/test-user
+# Test API endpoint
+curl http://localhost:8000/status
 
 # Check CORS settings in src/main.py
 ```
@@ -441,7 +440,7 @@ wscat -c ws://localhost:8000/api/v1/ws/chat/test-user
 ### Getting Help
 
 1. **Check Logs**: Always check application logs first
-2. **Read Docs**: See `/docs/HF_DEPLOYMENT.md` for detailed guides
+2. **Read Docs**: See [HF Deployment Guide](docs/HF_DEPLOYMENT.md) for detailed guides
 3. **GitHub Issues**: https://github.com/clduab11/arena-improver/issues
 4. **Test Suite**: Run `pytest -v` to identify broken components
 
@@ -549,7 +548,6 @@ Metrics include:
 
 - **Full HF Guide**: [docs/HF_DEPLOYMENT.md](docs/HF_DEPLOYMENT.md)
 - **HF Quick Reference**: [HUGGINGFACE_SPACE_SETUP.md](HUGGINGFACE_SPACE_SETUP.md)
-- **HF Token Setup**: [HF_TOKEN_SETUP.md](HF_TOKEN_SETUP.md)
 - **GitHub Repository**: https://github.com/clduab11/arena-improver
 - **Live HF Space**: https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath
 - **MCP Hackathon**: https://huggingface.co/MCP-1st-Birthday
