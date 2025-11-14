@@ -8,6 +8,8 @@ on:
 jobs:
   sync-to-hf:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v3
         with:
