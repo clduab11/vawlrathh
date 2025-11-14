@@ -1,0 +1,31 @@
+name: Sync to Hugging Face Space
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  sync-to-hf:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+      
+      - name: Validate HF Token
+        run: |
+          if [ -z "${{ secrets.HF_TOKEN }}" ]; then
+            echo "Error: HF_TOKEN secret is not set"
+            exit 1
+          fi
+      
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add hf https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath
+          git push https://clduab11:${HF_TOKEN}@huggingface.co/spaces/MCP-1st-Birthday/vawlrath main --force 2>&1 | sed "s/${HF_TOKEN}/***TOKEN***/g"
