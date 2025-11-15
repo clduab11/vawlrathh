@@ -1,4 +1,4 @@
-# Vawlratth, your MTG: Arena Savior
+# Vawlrathh, your MTG: Arena Savior
 
 <!-- HACKATHON TAGS - DO NOT REMOVE -->
 **building-mcp-track-consumer**
