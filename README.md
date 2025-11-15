@@ -1,4 +1,4 @@
-# Arena Improver
+# Vawlratth, your MTG: Arena Savior
 
 *"Your deck's terrible. Let me show you how to fix it."*
 — **Vawlrathh, The Small'n**
