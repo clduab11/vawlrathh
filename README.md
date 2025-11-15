@@ -10,7 +10,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Hackathon: MCP 1st Birthday](https://img.shields.io/badge/Hackathon-MCP%201st%20Birthday-purple.svg)](https://huggingface.co/MCP-1st-Birthday)
-[![HF Space](https://img.shields.io/badge/🤗-Hugging%20Face%20Space-yellow.svg)](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath)
+[![HF Space](https://img.shields.io/badge/🤗-Hugging%20Face%20Space-yellow.svg)](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh)
 
 ---
 
@@ -70,8 +70,8 @@ Don't skip this part. I hate repeating myself.
 
 ```bash
 # Clone it
-git clone https://github.com/clduab11/arena-improver.git
-cd arena-improver
+git clone https://github.com/clduab11/vawlrathh.git
+cd vawlrathh
 
 # Install dependencies
 pip install -r requirements.txt
@@ -90,7 +90,7 @@ Done? Good. Moving on.
 
 ## 🚀 Try It Now
 
-Want to see it in action without installing anything? Check out the **[Hugging Face Space](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath)**!
+Want to see it in action without installing anything? Check out the **[Hugging Face Space](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh)**!
 
 The Space provides:
 - **Interactive API Documentation**: Test all endpoints directly in your browser
@@ -411,7 +411,7 @@ Already set up in `mcp_config.json`. Don't touch it unless you know what you're 
 - **[Steam Arena Guide](docs/STEAM_ARENA_GUIDE.md)**: Platform-specific help
 - **[MCP Security](docs/MCP_SECURITY.md)**: Security best practices
 - **[API Docs](http://localhost:8000/docs)**: Interactive API documentation (when running locally)
-- **[Live API Docs](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath)**: Try the API in the HF Space
+- **[Live API Docs](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh)**: Try the API in the HF Space
 
 ---
 
@@ -452,17 +452,7 @@ Need an automated once-over before pinging humans? Add the `claude-review` label
 
 **Event**: MCP 1st Birthday Hackathon
 **Submission**: Arena Improver with Vawlrathh Integration
-**Live Demo**: [Hugging Face Space](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath)
-
-### Key Differentiators
-
-1. **Dual AI Agent System**: Primary chat + consensus validation
-2. **Physical Card Integration**: Arena-only filtering + vendor pricing
-3. **Character-Driven UX**: Vawlrathh's personality (me)
-4. **Sequential Reasoning**: Multi-step decision analysis
-5. **Event Logging**: Complete audit trail
-6. **Full MCP Depth**: Memory, sequential thinking, omnisearch
-7. **Hugging Face Space**: Live demo with auto-sync from GitHub
+**Live Demo**: [Hugging Face Space](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh)
 
 ### Metrics
 

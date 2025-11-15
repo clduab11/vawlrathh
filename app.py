@@ -320,10 +320,9 @@ async def api_upload_csv(csv_file) -> Dict[str, Any]:
     """Upload deck via CSV file."""
     try:
         files = {"file": (csv_file.name, csv_file, "text/csv")}
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(f"{API_BASE_URL}/upload/csv", files=files)
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.post(f"{API_BASE_URL}/upload/csv", files=files, timeout=30)
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "Vawlrathh is taking too long. Try again."}
     except httpx.HTTPError as e:
@@ -335,13 +334,13 @@ async def api_upload_csv(csv_file) -> Dict[str, Any]:
 async def api_upload_text(deck_text: str) -> Dict[str, Any]:
     """Upload deck via Arena text format."""
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(
-                f"{API_BASE_URL}/upload/text",
-                json={"deck_string": deck_text, "format": "Standard"}
-            )
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.post(
+            f"{API_BASE_URL}/upload/text",
+            json={"deck_string": deck_text, "format": "Standard"},
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "That's not a deck, that's a pile. Try again."}
     except httpx.HTTPError as e:
@@ -353,10 +352,9 @@ async def api_upload_text(deck_text: str) -> Dict[str, Any]:
 async def api_analyze_deck(deck_id: int) -> Dict[str, Any]:
     """Analyze a deck."""
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(f"{API_BASE_URL}/analyze/{deck_id}")
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.post(f"{API_BASE_URL}/analyze/{deck_id}", timeout=60)
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "Analysis taking too long. Your deck is that bad."}
     except httpx.HTTPError as e:
@@ -368,10 +366,9 @@ async def api_analyze_deck(deck_id: int) -> Dict[str, Any]:
 async def api_optimize_deck(deck_id: int) -> Dict[str, Any]:
     """Get optimization suggestions."""
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(f"{API_BASE_URL}/optimize/{deck_id}")
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.post(f"{API_BASE_URL}/optimize/{deck_id}", timeout=60)
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "Optimization timeout. Even I have limits."}
     except httpx.HTTPError as e:
@@ -383,10 +380,9 @@ async def api_optimize_deck(deck_id: int) -> Dict[str, Any]:
 async def api_get_purchase_info(deck_id: int) -> Dict[str, Any]:
     """Get physical card purchase information."""
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.get(f"{API_BASE_URL}/purchase/{deck_id}")
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.get(f"{API_BASE_URL}/purchase/{deck_id}", timeout=60)
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "Purchase lookup timeout."}
     except httpx.HTTPError as e:
@@ -398,10 +394,9 @@ async def api_get_purchase_info(deck_id: int) -> Dict[str, Any]:
 async def api_list_decks() -> List[Dict[str, Any]]:
     """List all decks."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(f"{API_BASE_URL}/decks")
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.get(f"{API_BASE_URL}/decks", timeout=10)
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
         logger.exception(f"Failed to list decks: {e}")
         return []
@@ -1096,12 +1091,9 @@ The following cards only exist in Arena and can't be purchased:
 
                     try:
                         # Send via chat with special context for sequential reasoning
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        response = loop.run_until_complete(
+                        response = asyncio.run(
                             send_chat_message(user_id, f"[STRATEGIC ANALYSIS] {question}", deck_id)
                         )
-                        loop.close()
 
                         progress(1.0, desc="Analysis complete!")
 
@@ -1426,7 +1418,7 @@ def main():
     try:
         fastapi_process = start_fastapi_server()
     except Exception as e:
-        logger.error(f"Failed to start FastAPI: {e}")
+        logger.exception(f"Failed to start FastAPI: {e}")
         sys.exit(1)
 
     # Wait for readiness
@@ -1450,7 +1442,7 @@ def main():
             show_error=True
         )
     except Exception as e:
-        logger.error(f"Failed to launch Gradio: {e}")
+        logger.exception(f"Failed to launch Gradio: {e}")
         fastapi_process.kill()
         sys.exit(1)
 
