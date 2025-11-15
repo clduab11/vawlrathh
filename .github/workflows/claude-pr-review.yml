@@ -1,0 +1,163 @@
+name: Claude PR Review
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: claude-pr-review-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    name: Claude Code Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: |
+      github.event_name == 'pull_request_target' && (
+        (github.event.action == 'labeled' && github.event.label.name == 'claude-review') ||
+        (github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'claude-review'))
+      )
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for existing review comment
+        id: duplicate_guard
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const headSha = context.payload.pull_request.head.sha;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100
+            });
+
+            const marker = `<!-- claude-review:${headSha} -->`;
+            const alreadyReviewed = comments.some(comment =>
+              comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker)
+            );
+
+            return {
+              skip_duplicate: alreadyReviewed,
+              head_sha: headSha
+            };
+
+      - name: Duplicate review detected
+        if: ${{ fromJson(steps.duplicate_guard.outputs.result).skip_duplicate }}
+        run: echo "Claude already reviewed this commit. Skipping duplicate run."
+
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        if: ${{ !fromJson(steps.duplicate_guard.outputs.result).skip_duplicate }}
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            return {
+              number: prNumber,
+              title: pr.title,
+              body: pr.body,
+              base: pr.base.sha,
+              head: pr.head.sha,
+              files: files.map(f => f.filename)
+            };
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+        if: ${{ !fromJson(steps.duplicate_guard.outputs.result).skip_duplicate }}
+
+      - name: Install dependencies
+        if: ${{ !fromJson(steps.duplicate_guard.outputs.result).skip_duplicate }}
+        run: |
+          pip install --upgrade pip
+          # anthropic>=0.18.0 fixes Client init issue, <1.0.0 prevents breaking changes
+          pip install "anthropic>=0.18.0,<1.0.0" PyGithub==2.1.1 PyYAML==6.0.1
+
+      - name: Run Claude Code Review
+        if: ${{ !fromJson(steps.duplicate_guard.outputs.result).skip_duplicate }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .github/scripts/claude_reviewer.py \
+            --pr-number "${{ fromJson(steps.pr.outputs.result).number }}" \
+            --repo "${{ github.repository }}" \
+            --base-sha "${{ fromJson(steps.pr.outputs.result).base }}" \
+            --head-sha "${{ fromJson(steps.pr.outputs.result).head }}"
+
+      - name: Post review summary
+        if: ${{ !fromJson(steps.duplicate_guard.outputs.result).skip_duplicate }}
+        uses: actions/github-script@v7
+        env:
+          CLAUDE_HEAD_SHA: ${{ fromJson(steps.duplicate_guard.outputs.result).head_sha }}
+        with:
+          script: |
+            const fs = require('fs');
+            const GITHUB_COMMENT_MAX_LENGTH = 65000;  // Leave buffer below 65536 limit
+
+            let reviewComment = '## 🤖 Claude Code Review\n\n';
+
+            if (fs.existsSync('claude_review.md')) {
+              let response = fs.readFileSync('claude_review.md', 'utf8');
+              // GitHub comment limit is 65536 characters
+              if (response.length > GITHUB_COMMENT_MAX_LENGTH) {
+                response = response.substring(0, GITHUB_COMMENT_MAX_LENGTH) + '\n\n[Truncated - see artifacts for full review]';
+              }
+              reviewComment += response;
+            } else {
+              reviewComment += '✅ No issues found. Code looks good!\n\n';
+              reviewComment += '**Review completed successfully.**';
+            }
+
+            reviewComment += '\n\n---\n';
+            reviewComment += '*Automated review by Claude AI | See [CLAUDE.md](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/main/CLAUDE.md) for more information*';
+            if (process.env.CLAUDE_HEAD_SHA) {
+              reviewComment += `\n<!-- claude-review:${process.env.CLAUDE_HEAD_SHA} -->`;
+            }
+
+            const prNumber = ${{ fromJson(steps.pr.outputs.result).number }};
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: reviewComment
+            });
+
+      - name: Upload review artifacts
+        if: ${{ !fromJson(steps.duplicate_guard.outputs.result).skip_duplicate && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-review-${{ github.run_number }}
+          path: |
+            claude_review.md
+            claude_review_details.json
+          retention-days: 30
