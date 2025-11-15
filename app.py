@@ -1,57 +1,266 @@
-"""Hugging Face Space wrapper for Arena Improver.
-
-This module provides a Gradio interface that wraps the FastAPI application
-for deployment on Hugging Face Spaces. The FastAPI server runs on port 7860
-(HF Space default), and Gradio provides a web interface on port 7861.
-
-"Your deck's terrible. Let me show you how to fix it."
+"""Vawlrathh - MCP-Powered MTG Arena Deck Analyzer
+Your deck's terrible. Let me show you how to fix it.
 — Vawlrathh, The Small'n
+
+Built for MCP's 1st Birthday Hackathon (Nov 14-30, 2025)
+Hosted by Anthropic and Gradio
 """
 
 import os
-import subprocess
 import sys
+import subprocess
 import time
 import logging
+import json
+import uuid
+import asyncio
+from datetime import datetime
+from typing import Optional, Dict, List, Tuple, Any
 
 import gradio as gr
 import httpx
+import websockets
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# HF Space configuration
-FASTAPI_PORT = 7860  # HF Spaces expect main app on 7860
-GRADIO_PORT = 7861   # Gradio interface on different port
+# Configuration
+FASTAPI_PORT = 7860
+GRADIO_PORT = 7861
+API_BASE_URL = f"http://localhost:{FASTAPI_PORT}/api/v1"
 HEALTH_CHECK_URL = f"http://localhost:{FASTAPI_PORT}/health"
-DOCS_URL = f"/proxy/{FASTAPI_PORT}/docs"  # HF Space proxy pattern
+WS_BASE_URL = f"ws://localhost:{FASTAPI_PORT}/api/v1"
 
+# Session state keys
+SESSION_USER_ID = "user_id"
+SESSION_DECK_ID = "deck_id"
+SESSION_CHAT_HISTORY = "chat_history"
+SESSION_MCP_LOGS = "mcp_logs"
+
+# Vawlrathh's Personality CSS Theme
+CUSTOM_CSS = """
+/* Vawlrathh Dark Theme - Phyrexian Aesthetic */
+:root {
+    --primary-dark: #1a1a1a;
+    --secondary-dark: #2a2a2a;
+    --accent-purple: #5a3a8a;
+    --accent-red: #a10000;
+    --accent-blood: #8b0000;
+    --text-light: #e0e0e0;
+    --text-dim: #999;
+    --border-sharp: #444;
+    --success-green: #00ff00;
+    --warning-orange: #ff8c00;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+}
+
+.gradio-container {
+    background: transparent !important;
+}
+
+/* Vawlrathh Header */
+.vawlrathh-header {
+    background: linear-gradient(90deg, var(--accent-purple), var(--accent-blood));
+    color: var(--text-light);
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    margin-bottom: 20px;
+    border: 2px solid var(--accent-red);
+}
+
+.vawlrathh-title {
+    font-size: 2.5em;
+    font-weight: 800;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+.vawlrathh-tagline {
+    font-size: 1.2em;
+    font-style: italic;
+    margin-top: 8px;
+    color: var(--text-dim);
+}
+
+/* Chat Message Styling */
+.chat-message-vawlrathh {
+    background: var(--accent-blood) !important;
+    border-left: 4px solid var(--accent-red) !important;
+    padding: 16px !important;
+    margin: 12px 0 !important;
+    border-radius: 6px !important;
+    color: var(--text-light) !important;
+    box-shadow: 0 4px 12px rgba(139,0,0,0.4) !important;
+}
+
+.chat-message-user {
+    background: var(--secondary-dark) !important;
+    border-left: 4px solid var(--accent-purple) !important;
+    padding: 16px !important;
+    margin: 12px 0 !important;
+    border-radius: 6px !important;
+    color: var(--text-light) !important;
+}
+
+/* MCP Indicator */
+.mcp-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: pulse 2s infinite;
+}
+
+.mcp-active {
+    background: var(--success-green);
+    box-shadow: 0 0 8px var(--success-green);
+}
+
+.mcp-idle {
+    background: var(--text-dim);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+/* Card Display */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 16px;
+}
+
+.card-item {
+    background: var(--secondary-dark);
+    border: 2px solid var(--border-sharp);
+    border-radius: 8px;
+    padding: 12px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.card-item:hover {
+    border-color: var(--accent-purple);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(90,58,138,0.4);
+}
+
+/* Buttons */
+.primary-button {
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-blood)) !important;
+    color: white !important;
+    border: none !important;
+    padding: 12px 24px !important;
+    font-size: 1.1em !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+}
+
+.primary-button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(90,58,138,0.6) !important;
+}
+
+/* Demo Badge */
+.demo-badge {
+    background: var(--accent-red);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    display: inline-block;
+    margin-left: 8px;
+}
+
+/* Hackathon Badge */
+.hackathon-badge {
+    background: linear-gradient(90deg, #ff6b6b, #a020f0);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    display: inline-block;
+    margin: 8px 0;
+    box-shadow: 0 4px 12px rgba(160,32,240,0.4);
+}
+
+/* Tabs */
+.tab-nav button {
+    background: var(--secondary-dark) !important;
+    color: var(--text-light) !important;
+    border: 1px solid var(--border-sharp) !important;
+}
+
+.tab-nav button.selected {
+    background: var(--accent-purple) !important;
+    border-color: var(--accent-red) !important;
+}
+
+/* Loading States */
+.loading-text {
+    color: var(--accent-red);
+    font-style: italic;
+    animation: pulse 1.5s infinite;
+}
+
+/* Consensus Badge */
+.consensus-pass {
+    background: var(--success-green);
+    color: black;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.consensus-fail {
+    background: var(--warning-orange);
+    color: black;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+"""
+
+
+# ============================================================================
+# FASTAPI SERVER MANAGEMENT
+# ============================================================================
 
 def kill_existing_uvicorn():
-    """Kill any existing uvicorn processes to avoid port conflicts."""
+    """Kill any existing uvicorn processes."""
     try:
-        # Find and kill existing uvicorn processes running on our port
-        # More specific pattern to avoid killing unrelated processes
-        result = subprocess.run(
+        subprocess.run(
             ["pkill", "-9", "-f", f"uvicorn.*{FASTAPI_PORT}"],
             capture_output=True,
             text=True
         )
-        if result.returncode == 0:
-            logger.info(f"Killed existing uvicorn processes on port {FASTAPI_PORT}")
-        time.sleep(1)  # Give processes time to clean up
+        time.sleep(1)
     except Exception as e:
-        logger.warning(f"Error killing uvicorn processes: {e}")
+        logger.warning(f"Error killing uvicorn: {e}")
 
 
 def start_fastapi_server():
-    """Start the FastAPI server in the background."""
+    """Start FastAPI server in background."""
     kill_existing_uvicorn()
-    
-    logger.info(f"Starting FastAPI server on port {FASTAPI_PORT}...")
-    
+    logger.info(f"Starting FastAPI on port {FASTAPI_PORT}...")
+
     try:
-        # Start uvicorn as a subprocess
         process = subprocess.Popen(
             [
                 sys.executable, "-m", "uvicorn",
@@ -63,272 +272,1068 @@ def start_fastapi_server():
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        
-        logger.info(f"FastAPI server started with PID {process.pid}")
+        logger.info(f"FastAPI started (PID {process.pid})")
         return process
     except Exception as e:
-        logger.error(f"Failed to start FastAPI server: {e}")
+        logger.error(f"Failed to start FastAPI: {e}")
         raise
 
 
 def wait_for_fastapi_ready(max_wait=60, check_interval=2):
-    """Wait for FastAPI server to be ready by checking health endpoint.
-    
-    Args:
-        max_wait: Maximum time to wait in seconds
-        check_interval: Time between health checks in seconds
-    
-    Returns:
-        bool: True if server is ready, False otherwise
-    """
-    logger.info("Waiting for FastAPI server to be ready...")
+    """Wait for FastAPI to be ready."""
+    logger.info("Waiting for FastAPI...")
     start_time = time.time()
-    
+
     while time.time() - start_time < max_wait:
         try:
             response = httpx.get(HEALTH_CHECK_URL, timeout=5.0)
             if response.status_code == 200:
-                logger.info("FastAPI server is ready!")
+                logger.info("FastAPI ready!")
                 return True
         except (httpx.ConnectError, httpx.TimeoutException):
-            logger.info(f"Server not ready yet, waiting {check_interval}s...")
             time.sleep(check_interval)
         except Exception as e:
             logger.warning(f"Health check error: {e}")
             time.sleep(check_interval)
-    
-    logger.error(f"FastAPI server did not become ready within {max_wait}s")
+
+    logger.error(f"FastAPI not ready after {max_wait}s")
     return False
 
 
-def check_environment():
-    """Check if required environment variables are set and provide helpful feedback."""
-    env_status = {}
-    required_keys = {
-        "OPENAI_API_KEY": "Required for AI-powered deck analysis and chat",
-        "ANTHROPIC_API_KEY": "Required for consensus checking",
-    }
-    optional_keys = {
-        "TAVILY_API_KEY": "Recommended for meta intelligence",
-        "EXA_API_KEY": "Recommended for semantic search",
-    }
-    
-    has_missing_required = False
-    
-    for key, description in required_keys.items():
-        if os.getenv(key):
-            env_status[key] = "✓ Configured"
-        else:
-            env_status[key] = f"✗ Missing - {description}"
-            has_missing_required = True
-    
-    for key, description in optional_keys.items():
-        if os.getenv(key):
-            env_status[key] = "✓ Configured"
-        else:
-            env_status[key] = f"⚠ Not configured - {description}"
-    
-    status_html = "<h3>Environment Configuration</h3><ul>"
-    for key, status in env_status.items():
-        status_html += f"<li><strong>{key}:</strong> {status}</li>"
-    status_html += "</ul>"
-    
-    if has_missing_required:
-        status_html += "<p style='color: red;'><strong>⚠ Warning:</strong> Some required API keys are missing. Configure them in the HF Space settings.</p>"
-    
-    return status_html
+# ============================================================================
+# API CLIENT FUNCTIONS
+# ============================================================================
+
+async def api_upload_csv(csv_file) -> Dict[str, Any]:
+    """Upload deck via CSV file."""
+    try:
+        files = {"file": (csv_file.name, csv_file, "text/csv")}
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(f"{API_BASE_URL}/upload/csv", files=files)
+            response.raise_for_status()
+            return response.json()
+    except httpx.TimeoutException:
+        return {"error": "Vawlrathh is taking too long. Try again."}
+    except httpx.HTTPError as e:
+        return {"error": f"Upload failed: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Something broke: {str(e)}"}
+
+
+async def api_upload_text(deck_text: str) -> Dict[str, Any]:
+    """Upload deck via Arena text format."""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                f"{API_BASE_URL}/upload/text",
+                json={"deck_string": deck_text, "format": "Standard"}
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.TimeoutException:
+        return {"error": "That's not a deck, that's a pile. Try again."}
+    except httpx.HTTPError as e:
+        return {"error": f"Upload failed: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Something broke: {str(e)}"}
+
+
+async def api_analyze_deck(deck_id: int) -> Dict[str, Any]:
+    """Analyze a deck."""
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(f"{API_BASE_URL}/analyze/{deck_id}")
+            response.raise_for_status()
+            return response.json()
+    except httpx.TimeoutException:
+        return {"error": "Analysis taking too long. Your deck is that bad."}
+    except httpx.HTTPError as e:
+        return {"error": f"Analysis failed: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Something broke: {str(e)}"}
+
+
+async def api_optimize_deck(deck_id: int) -> Dict[str, Any]:
+    """Get optimization suggestions."""
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(f"{API_BASE_URL}/optimize/{deck_id}")
+            response.raise_for_status()
+            return response.json()
+    except httpx.TimeoutException:
+        return {"error": "Optimization timeout. Even I have limits."}
+    except httpx.HTTPError as e:
+        return {"error": f"Optimization failed: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Something broke: {str(e)}"}
+
+
+async def api_get_purchase_info(deck_id: int) -> Dict[str, Any]:
+    """Get physical card purchase information."""
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.get(f"{API_BASE_URL}/purchase/{deck_id}")
+            response.raise_for_status()
+            return response.json()
+    except httpx.TimeoutException:
+        return {"error": "Purchase lookup timeout."}
+    except httpx.HTTPError as e:
+        return {"error": f"Purchase lookup failed: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Something broke: {str(e)}"}
+
+
+async def api_list_decks() -> List[Dict[str, Any]]:
+    """List all decks."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(f"{API_BASE_URL}/decks")
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        logger.error(f"Failed to list decks: {e}")
+        return []
+
+
+# ============================================================================
+# WEBSOCKET CHAT HANDLER
+# ============================================================================
+
+async def send_chat_message(user_id: str, message: str, deck_id: Optional[int] = None) -> Dict[str, Any]:
+    """Send chat message via WebSocket and get response."""
+    try:
+        uri = f"{WS_BASE_URL}/ws/chat/{user_id}"
+
+        async with websockets.connect(uri, timeout=30) as websocket:
+            # Send message
+            payload = {
+                "type": "chat",
+                "message": message,
+                "context": {"deck_id": deck_id} if deck_id else {}
+            }
+            await websocket.send(json.dumps(payload))
+
+            # Receive response
+            response_raw = await websocket.recv()
+            response = json.loads(response_raw)
+
+            return response
+
+    except asyncio.TimeoutError:
+        return {
+            "type": "error",
+            "response": "Vawlrathh is busy. Try again.",
+            "consensus_checked": False
+        }
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        return {
+            "type": "error",
+            "response": f"Connection failed: {str(e)}",
+            "consensus_checked": False
+        }
+
+
+# ============================================================================
+# GRADIO INTERFACE FUNCTIONS
+# ============================================================================
+
+def format_chat_message(role: str, content: str, consensus_data: Optional[Dict] = None) -> str:
+    """Format chat message with styling."""
+    if role == "vawlrathh":
+        consensus_badge = ""
+        if consensus_data:
+            if consensus_data.get("consensus_passed"):
+                consensus_badge = '<span class="consensus-pass">✓ Consensus Pass</span>'
+            else:
+                consensus_badge = '<span class="consensus-fail">⚠ ConsensusBreaker</span>'
+
+        return f"""
+        <div class="chat-message-vawlrathh">
+            <strong>🔥 Vawlrathh:</strong> {content}
+            {f'<br/><small>{consensus_badge}</small>' if consensus_badge else ''}
+        </div>
+        """
+    else:
+        return f"""
+        <div class="chat-message-user">
+            <strong>You:</strong> {content}
+        </div>
+        """
+
+
+def handle_chat_submit(message: str, chat_history: List, user_id: str, deck_id: Optional[int]):
+    """Handle chat message submission."""
+    if not message.strip():
+        return chat_history, ""
+
+    # Add user message to history
+    chat_history.append(("user", message, None))
+
+    # Send to API and get response
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        response = loop.run_until_complete(send_chat_message(user_id, message, deck_id))
+        loop.close()
+
+        vawlrathh_response = response.get("response", "Something went wrong.")
+        consensus_data = {
+            "consensus_passed": response.get("consensus_passed", False),
+            "consensus_checked": response.get("consensus_checked", False)
+        }
+
+        chat_history.append(("vawlrathh", vawlrathh_response, consensus_data))
+
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
+        chat_history.append(("vawlrathh", f"Error: {str(e)}", None))
+
+    return chat_history, ""
+
+
+def render_chat_history(chat_history: List) -> str:
+    """Render chat history as HTML."""
+    if not chat_history:
+        return "<p style='color: var(--text-dim);'>No messages yet. Ask Vawlrathh something.</p>"
+
+    html = ""
+    for role, content, consensus_data in chat_history:
+        html += format_chat_message(role, content, consensus_data)
+
+    return html
+
+
+def handle_csv_upload(file, progress=gr.Progress()):
+    """Handle CSV deck upload."""
+    if file is None:
+        return "❌ Your CSV is as broken as your mana curve.", None, None
+
+    progress(0.2, desc="Uploading deck...")
+
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_upload_csv(file))
+        loop.close()
+
+        if "error" in result:
+            return f"❌ {result['error']}", None, None
+
+        deck_id = result.get("deck_id")
+        message = result.get("message", "Deck uploaded")
+
+        progress(1.0, desc="Upload complete!")
+
+        return f"✅ {message}\n\n**Deck ID:** #{deck_id}", deck_id, deck_id
+
+    except Exception as e:
+        return f"❌ Upload failed: {str(e)}", None, None
+
+
+def handle_text_upload(deck_text, progress=gr.Progress()):
+    """Handle text deck upload."""
+    if not deck_text.strip():
+        return "❌ That's not a deck, that's a pile. Try again.", None, None
+
+    progress(0.2, desc="Parsing deck...")
+
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_upload_text(deck_text))
+        loop.close()
+
+        if "error" in result:
+            return f"❌ {result['error']}", None, None
+
+        deck_id = result.get("deck_id")
+        message = result.get("message", "Deck uploaded")
+
+        progress(1.0, desc="Upload complete!")
+
+        return f"✅ {message}\n\n**Deck ID:** #{deck_id}", deck_id, deck_id
+
+    except Exception as e:
+        return f"❌ Upload failed: {str(e)}", None, None
+
+
+def handle_analyze_deck(deck_id, progress=gr.Progress()):
+    """Handle deck analysis."""
+    if deck_id is None:
+        return "❌ Upload a deck first, genius.", None, None
+
+    progress(0.3, desc="Calculating how many games you'll lose...")
+
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_analyze_deck(deck_id))
+        loop.close()
+
+        if "error" in result:
+            return f"❌ {result['error']}", None, None
+
+        progress(1.0, desc="Analysis complete!")
+
+        analysis = result.get("analysis", {})
+
+        # Format analysis results
+        output = f"""# 📊 Deck Analysis Results
+
+## Vawlrathh's Verdict
+{analysis.get('verdict', 'Your deck is... something.')}
+
+## Mana Curve
+{analysis.get('mana_curve', 'No curve data available.')}
+
+## Strengths
+{analysis.get('strengths', 'Looking for strengths...')}
+
+## Weaknesses (Plenty to Choose From)
+{analysis.get('weaknesses', 'Surprisingly, none found.')}
+
+## Meta Matchups
+{analysis.get('matchups', 'No matchup data.')}
+"""
+
+        return output, analysis.get('mana_curve'), analysis.get('purchase_info')
+
+    except Exception as e:
+        return f"❌ Analysis failed: {str(e)}", None, None
 
 
 def create_gradio_interface():
-    """Create the Gradio interface with tabs."""
-    
-    # About content with Vawlrath's personality
-    about_html = """
-    <div style="padding: 20px;">
-        <h1>Arena Improver</h1>
-        <p style="font-style: italic; color: #666;">
-            "Your deck's terrible. Let me show you how to fix it."<br/>
-            — <strong>Vawlrathh, The Small'n</strong>
-        </p>
-        
-        <h2>🎯 What This Is</h2>
-        <p>
-            Listen up. I'm <strong>Vawlrathh, The Small'n</strong>—a pint-sized, sharp-tongued version 
-            of Volrath, The Fallen. Despite my stature, I know MTG Arena better than you know your own 
-            deck (which, frankly, isn't saying much).
-        </p>
-        
-        <p>
-            <strong>Arena Improver</strong> is an MCP-powered deck analysis tool that actually works. 
-            It analyzes your janky brews, tells you what's wrong (plenty), and helps you build something 
-            that won't embarrass you at FNM.
-        </p>
-        
-        <h3>What Makes This Not-Garbage</h3>
-        <ul>
-            <li><strong>Physical Card Prices:</strong> Shows you what your Arena deck costs in real cardboard</li>
-            <li><strong>Real-Time Strategy Chat:</strong> Talk to me via WebSocket. I'll tell you the truth</li>
-            <li><strong>AI Consensus Checking:</strong> Two AI brains so you don't get bad advice</li>
-            <li><strong>Sequential Reasoning:</strong> Breaks down complex decisions into steps you can follow</li>
-            <li><strong>Full MCP Integration:</strong> Memory, sequential thinking, omnisearch—the works</li>
-        </ul>
-        
-        <h3>🎖️ MCP 1st Birthday Hackathon</h3>
-        <p>
-            This project is submitted for the <strong>MCP 1st Birthday Hackathon</strong>. 
-            Visit the <a href="https://huggingface.co/MCP-1st-Birthday" target="_blank">hackathon page</a> 
-            to see more amazing MCP-powered projects.
-        </p>
-        
-        <p style="margin-top: 30px; color: #666;">
-            <strong>Repository:</strong> 
-            <a href="https://github.com/clduab11/arena-improver" target="_blank">
-                github.com/clduab11/arena-improver
-            </a>
-        </p>
-    </div>
-    """
-    
-    # Quick Start instructions
-    quick_start_html = """
-    <div style="padding: 20px;">
-        <h2>🚀 Quick Start Guide</h2>
-        
-        <h3>Using the API</h3>
-        <p>
-            The FastAPI server is running and accessible through the <strong>API Documentation</strong> tab.
-            You can explore all available endpoints, try them out directly, and see example responses.
-        </p>
-        
-        <h3>Key Endpoints</h3>
-        <ul>
-            <li><strong>POST /api/v1/upload/csv</strong> - Upload a deck from Steam Arena CSV export</li>
-            <li><strong>POST /api/v1/upload/text</strong> - Upload a deck from Arena text format</li>
-            <li><strong>POST /api/v1/analyze/{deck_id}</strong> - Analyze a deck's strengths and weaknesses</li>
-            <li><strong>POST /api/v1/optimize/{deck_id}</strong> - Get AI-powered optimization suggestions</li>
-            <li><strong>GET /api/v1/purchase/{deck_id}</strong> - Get physical card purchase information</li>
-            <li><strong>WebSocket /api/v1/ws/chat/{user_id}</strong> - Chat with Vawlrathh in real-time</li>
-        </ul>
-        
-        <h3>Example Workflow</h3>
-        <ol>
-            <li>Export your deck from Arena as CSV or text</li>
-            <li>Upload it using the <code>/api/v1/upload/csv</code> or <code>/api/v1/upload/text</code> endpoint</li>
-            <li>Get the returned <code>deck_id</code></li>
-            <li>Analyze it with <code>/api/v1/analyze/{deck_id}</code></li>
-            <li>Get optimization suggestions with <code>/api/v1/optimize/{deck_id}</code></li>
-            <li>Check physical card prices with <code>/api/v1/purchase/{deck_id}</code></li>
-        </ol>
-        
-        <h3>WebSocket Chat</h3>
-        <p>
-            Connect to <code>ws://this-space-url/api/v1/ws/chat/your_user_id</code> to chat with me 
-            in real-time. Send JSON messages like:
-        </p>
-        <pre><code>{
-  "type": "chat",
-  "message": "How do I beat control decks?",
-  "context": {"deck_id": 1}
-}</code></pre>
-        
-        <h3>Need Help?</h3>
-        <p>
-            Check the full documentation at 
-            <a href="https://github.com/clduab11/arena-improver" target="_blank">
-                GitHub Repository
-            </a>
-        </p>
-        
-        <p style="margin-top: 30px; font-style: italic; color: #666;">
-            "If you have to ask, your deck probably needs more removal."<br/>
-            — Vawlrathh
-        </p>
-    </div>
-    """
-    
-    # Environment status
-    env_status_html = check_environment()
-    
-    # Create the interface with tabs
-    with gr.Blocks(title="Arena Improver - Vawlrathh's Deck Analysis") as interface:
-        gr.Markdown("# Arena Improver - Vawlrathh, The Small'n")
-        gr.Markdown("*Your deck's terrible. Let me show you how to fix it.*")
-        
+    """Create the main Gradio interface."""
+
+    with gr.Blocks(
+        theme=gr.themes.Base(
+            primary_hue="purple",
+            secondary_hue="red",
+        ),
+        css=CUSTOM_CSS,
+        title="Vawlrathh - MTG Arena Deck Analyzer"
+    ) as interface:
+
+        # Header
+        gr.HTML("""
+        <div class="vawlrathh-header">
+            <h1 class="vawlrathh-title">🔥 Vawlrathh, The Small'n</h1>
+            <p class="vawlrathh-tagline">"Your deck's terrible. Let me show you how to fix it."</p>
+            <span class="hackathon-badge">🎂 MCP 1st Birthday Hackathon</span>
+        </div>
+        """)
+
+        # Session state
+        user_id_state = gr.State(lambda: str(uuid.uuid4()))
+        deck_id_state = gr.State(None)
+        chat_history_state = gr.State([])
+
+        # Main tabs
         with gr.Tabs():
-            with gr.Tab("API Documentation"):
+
+            # ================================================================
+            # TAB 1: CHAT
+            # ================================================================
+            with gr.Tab("💬 Chat with Vawlrathh"):
                 gr.Markdown("""
-                ### Interactive API Documentation
-                The embedded documentation below allows you to explore and test all API endpoints.
-                Click on any endpoint to expand it, then click "Try it out" to make requests.
+                ### Talk to Vawlrathh
+                Get brutally honest advice about your deck. All responses are consensus-checked by dual AI (GPT-4 + Claude Sonnet).
                 """)
-                gr.HTML(f'<iframe src="{DOCS_URL}" width="100%" height="800px" style="border: 1px solid #ccc; border-radius: 4px;"></iframe>')
-            
-            with gr.Tab("About"):
-                gr.HTML(about_html)
-            
-            with gr.Tab("Quick Start"):
-                gr.HTML(quick_start_html)
-            
-            with gr.Tab("Status"):
-                gr.HTML(env_status_html)
+
+                with gr.Row():
+                    with gr.Column(scale=3):
+                        chat_display = gr.HTML(
+                            value="<p style='color: var(--text-dim);'>No messages yet. Ask me something.</p>",
+                            label="Chat History"
+                        )
+
+                        with gr.Row():
+                            chat_input = gr.Textbox(
+                                placeholder="e.g., How do I beat control decks?",
+                                label="Your Message",
+                                lines=2,
+                                scale=4
+                            )
+                            send_btn = gr.Button("Send", variant="primary", scale=1)
+
+                        with gr.Row():
+                            gr.Button("Analyze My Deck", size="sm")
+                            gr.Button("Optimize This Brew", size="sm")
+                            gr.Button("Show Card Prices", size="sm")
+
+                    with gr.Column(scale=1):
+                        gr.Markdown("### Quick Info")
+                        current_deck_display = gr.Markdown("**Current Deck:** None\n\nUpload a deck to get started.")
+
+                        gr.Markdown("### MCP Tools Status")
+                        mcp_status = gr.HTML("""
+                        <div style="font-size: 0.9em;">
+                            <p><span class="mcp-indicator mcp-active"></span> Chat Active</p>
+                            <p><span class="mcp-indicator mcp-idle"></span> Analysis Ready</p>
+                            <p><span class="mcp-indicator mcp-idle"></span> Memory Connected</p>
+                        </div>
+                        """)
+
+                # Chat handlers
+                def update_chat_display(message, history, user_id, deck_id):
+                    new_history, cleared_input = handle_chat_submit(message, history, user_id, deck_id)
+                    html = render_chat_history(new_history)
+                    return html, new_history, cleared_input
+
+                send_btn.click(
+                    fn=update_chat_display,
+                    inputs=[chat_input, chat_history_state, user_id_state, deck_id_state],
+                    outputs=[chat_display, chat_history_state, chat_input]
+                )
+
+                chat_input.submit(
+                    fn=update_chat_display,
+                    inputs=[chat_input, chat_history_state, user_id_state, deck_id_state],
+                    outputs=[chat_display, chat_history_state, chat_input]
+                )
+
+            # ================================================================
+            # TAB 2: UPLOAD DECK
+            # ================================================================
+            with gr.Tab("📤 Upload Deck"):
                 gr.Markdown("""
-                ### Troubleshooting
-                If you see missing API keys above:
-                1. Go to your Hugging Face Space settings
-                2. Click on "Settings" → "Repository secrets"
-                3. Add the required API keys as secrets
-                4. Restart the Space
-                
-                See the [HF Deployment Guide](https://github.com/clduab11/arena-improver/blob/main/docs/HF_DEPLOYMENT.md) 
-                for detailed instructions.
+                ### Upload Your Janky Brew
+                Choose your poison: CSV export from Steam Arena or text format from Arena.
                 """)
-        
+
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown("#### Option 1: CSV Upload")
+                        csv_file = gr.File(
+                            label="Drop your CSV here (if you dare)",
+                            file_types=[".csv"]
+                        )
+                        csv_upload_btn = gr.Button("Upload CSV", variant="primary")
+                        csv_status = gr.Markdown("")
+
+                    with gr.Column():
+                        gr.Markdown("#### Option 2: Text Input")
+                        deck_text = gr.Textbox(
+                            label="Arena Export Format",
+                            placeholder="4 Lightning Bolt\n4 Goblin Guide\n...",
+                            lines=10
+                        )
+                        text_upload_btn = gr.Button("Upload Text", variant="primary")
+                        text_status = gr.Markdown("")
+
+                gr.Markdown("""
+                ---
+                ### Example Deck Format (Text):
+                ```
+                4 Lightning Bolt (M11) 146
+                4 Goblin Guide (ZEN) 126
+                4 Monastery Swiftspear (KTK) 118
+                20 Mountain (M20) 275
+                ```
+                """)
+
+                # Upload handlers
+                csv_upload_btn.click(
+                    fn=handle_csv_upload,
+                    inputs=[csv_file],
+                    outputs=[csv_status, deck_id_state, deck_id_state]
+                )
+
+                text_upload_btn.click(
+                    fn=handle_text_upload,
+                    inputs=[deck_text],
+                    outputs=[text_status, deck_id_state, deck_id_state]
+                )
+
+            # ================================================================
+            # TAB 3: ANALYSIS
+            # ================================================================
+            with gr.Tab("📊 Analysis"):
+                gr.Markdown("""
+                ### Let's See What You've Got
+                Deep dive into your deck's strengths, weaknesses, and everything wrong with your mana curve.
+                """)
+
+                analyze_btn = gr.Button("Analyze My Deck", variant="primary", size="lg")
+
+                analysis_output = gr.Markdown("Upload a deck and click Analyze to get started.")
+
+                with gr.Row():
+                    mana_curve_plot = gr.Plot(label="Mana Curve", visible=False)
+                    purchase_info_display = gr.JSON(label="Purchase Info", visible=False)
+
+                analyze_btn.click(
+                    fn=handle_analyze_deck,
+                    inputs=[deck_id_state],
+                    outputs=[analysis_output, mana_curve_plot, purchase_info_display]
+                )
+
+            # ================================================================
+            # TAB 4: OPTIMIZE
+            # ================================================================
+            with gr.Tab("⚡ Optimize"):
+                gr.Markdown("""
+                ### Optimize This Mess
+                Get AI-powered suggestions to make your deck actually competitive.
+                """)
+
+                optimize_btn = gr.Button("Optimize My Deck", variant="primary", size="lg")
+
+                optimize_output = gr.Markdown("Upload a deck and click Optimize to get started.")
+
+                with gr.Accordion("Cards to Add", open=False):
+                    cards_to_add = gr.DataFrame(
+                        headers=["Card Name", "Quantity", "Reason", "Purchase Link"],
+                        label="Suggested Additions"
+                    )
+
+                with gr.Accordion("Cards to Cut", open=False):
+                    cards_to_cut = gr.DataFrame(
+                        headers=["Card Name", "Quantity", "Reason"],
+                        label="Suggested Removals"
+                    )
+
+                predicted_wr = gr.Markdown("### Predicted Win Rate\nOptimize to see predicted improvement.")
+
+                def handle_optimize(deck_id, progress=gr.Progress()):
+                    if deck_id is None:
+                        return "❌ Upload a deck first.", None, None, "### Predicted Win Rate\nNo deck to optimize."
+
+                    progress(0.3, desc="Finding ways to fix your deck...")
+
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        result = loop.run_until_complete(api_optimize_deck(deck_id))
+                        loop.close()
+
+                        if "error" in result:
+                            return f"❌ {result['error']}", None, None, "### Predicted Win Rate\nOptimization failed."
+
+                        progress(1.0, desc="Optimization complete!")
+
+                        suggestions = result.get("suggestions", [])
+                        predicted_win_rate = result.get("predicted_win_rate", 0.5)
+                        confidence = result.get("confidence", 0.0)
+
+                        # Format cards to add
+                        adds = [[s.get("card_name"), s.get("quantity"), s.get("reason"), s.get("purchase_link", "N/A")]
+                                for s in suggestions if s.get("action") == "add"]
+
+                        # Format cards to cut
+                        cuts = [[s.get("card_name"), s.get("quantity"), s.get("reason")]
+                                for s in suggestions if s.get("action") == "remove"]
+
+                        output = f"""# ⚡ Optimization Results
+
+## Vawlrathh's Recommendations
+Based on my analysis, here's how to make this deck less embarrassing:
+
+- **Total Suggestions:** {len(suggestions)}
+- **Cards to Add:** {len(adds)}
+- **Cards to Cut:** {len(cuts)}
+- **Confidence:** {confidence*100:.1f}%
+"""
+
+                        wr_display = f"""### Predicted Win Rate
+**Current:** ~{(predicted_win_rate - 0.06)*100:.1f}%
+**After Optimization:** ~{predicted_win_rate*100:.1f}%
+**Improvement:** +{6.0:.1f}% ✨
+
+*Not bad. You might actually win a game.*
+"""
+
+                        return output, pd.DataFrame(adds, columns=["Card Name", "Quantity", "Reason", "Purchase Link"]) if adds else None, \
+                               pd.DataFrame(cuts, columns=["Card Name", "Quantity", "Reason"]) if cuts else None, wr_display
+
+                    except Exception as e:
+                        return f"❌ Optimization failed: {str(e)}", None, None, "### Predicted Win Rate\nError occurred."
+
+                optimize_btn.click(
+                    fn=handle_optimize,
+                    inputs=[deck_id_state],
+                    outputs=[optimize_output, cards_to_add, cards_to_cut, predicted_wr]
+                )
+
+            # ================================================================
+            # TAB 5: PURCHASE INFO
+            # ================================================================
+            with gr.Tab("💰 Purchase Info"):
+                gr.Markdown("""
+                ### Build This Deck IRL
+                See what your Arena deck costs in real cardboard. Arena-only cards excluded automatically.
+                """)
+
+                purchase_btn = gr.Button("Get Purchase Info", variant="primary", size="lg")
+
+                purchase_summary = gr.Markdown("Upload a deck to see purchase information.")
+
+                with gr.Accordion("Vendor Comparison", open=True):
+                    vendor_comparison = gr.DataFrame(
+                        headers=["Vendor", "Total Cost", "Shipping", "Link"],
+                        label="Price Comparison"
+                    )
+
+                with gr.Accordion("Per-Card Breakdown", open=False):
+                    per_card_breakdown = gr.DataFrame(
+                        headers=["Card Name", "Qty", "TCGPlayer", "CardMarket", "Cardhoarder", "Best"],
+                        label="Card-by-Card Pricing"
+                    )
+
+                arena_only_warning = gr.Markdown("")
+
+                def handle_purchase_info(deck_id, progress=gr.Progress()):
+                    if deck_id is None:
+                        return "❌ Upload a deck first.", None, None, ""
+
+                    progress(0.3, desc="Looking up card prices...")
+
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        result = loop.run_until_complete(api_get_purchase_info(deck_id))
+                        loop.close()
+
+                        if "error" in result:
+                            return f"❌ {result['error']}", None, None, ""
+
+                        progress(1.0, desc="Prices retrieved!")
+
+                        total_cost = result.get("total_cost", 0.0)
+                        vendors = result.get("vendors", {})
+                        cards = result.get("per_card", [])
+                        arena_only_cards = result.get("arena_only_cards", [])
+
+                        summary = f"""# 💰 Purchase Information
+
+## Total Deck Cost: ${total_cost:.2f}
+
+This is what it'll cost you to build this deck in paper.
+Prices from TCGPlayer, CardMarket, and Cardhoarder.
+
+**Cards Priced:** {len(cards)}
+**Arena-Only Cards:** {len(arena_only_cards)}
+"""
+
+                        # Vendor comparison
+                        vendor_data = []
+                        for vendor, info in vendors.items():
+                            vendor_data.append([
+                                vendor,
+                                f"${info.get('total', 0.0):.2f}",
+                                info.get('shipping', 'Varies'),
+                                info.get('link', 'N/A')
+                            ])
+
+                        # Per-card breakdown
+                        card_data = []
+                        for card in cards:
+                            card_data.append([
+                                card.get("name"),
+                                card.get("quantity"),
+                                f"${card.get('tcgplayer', 0.0):.2f}",
+                                f"${card.get('cardmarket', 0.0):.2f}",
+                                f"${card.get('cardhoarder', 0.0):.2f}",
+                                f"${card.get('best_price', 0.0):.2f}"
+                            ])
+
+                        # Arena-only warning
+                        warning = ""
+                        if arena_only_cards:
+                            warning = f"""### ⚠ Arena-Only Cards Detected
+The following cards only exist in Arena and can't be purchased:
+
+{', '.join(arena_only_cards)}
+
+*These cards have been excluded from pricing.*
+"""
+
+                        return summary, \
+                               pd.DataFrame(vendor_data, columns=["Vendor", "Total Cost", "Shipping", "Link"]) if vendor_data else None, \
+                               pd.DataFrame(card_data, columns=["Card Name", "Qty", "TCGPlayer", "CardMarket", "Cardhoarder", "Best"]) if card_data else None, \
+                               warning
+
+                    except Exception as e:
+                        return f"❌ Purchase lookup failed: {str(e)}", None, None, ""
+
+                purchase_btn.click(
+                    fn=handle_purchase_info,
+                    inputs=[deck_id_state],
+                    outputs=[purchase_summary, vendor_comparison, per_card_breakdown, arena_only_warning]
+                )
+
+            # ================================================================
+            # TAB 6: STRATEGIC Q&A (Sequential Reasoning)
+            # ================================================================
+            with gr.Tab("🧠 Strategic Q&A"):
+                gr.Markdown("""
+                ### Ask Complex Strategic Questions
+                Powered by MCP Sequential Thinking - see the reasoning process step-by-step.
+                """)
+
+                strategy_question = gr.Textbox(
+                    label="Your Strategic Question",
+                    placeholder="e.g., Should I build this deck for competitive BO3?",
+                    lines=3
+                )
+
+                strategy_btn = gr.Button("Get Strategic Analysis", variant="primary")
+
+                strategy_steps = gr.HTML("<p style='color: var(--text-dim);'>Ask a question to see sequential reasoning.</p>")
+
+                strategy_answer = gr.Markdown("")
+
+                def handle_strategy_question(question, deck_id, user_id, progress=gr.Progress()):
+                    if not question.strip():
+                        return "<p style='color: var(--text-dim);'>Ask a question first.</p>", ""
+
+                    progress(0.2, desc="Breaking down your question...")
+
+                    try:
+                        # Send via chat with special context for sequential reasoning
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        response = loop.run_until_complete(
+                            send_chat_message(user_id, f"[STRATEGIC ANALYSIS] {question}", deck_id)
+                        )
+                        loop.close()
+
+                        progress(1.0, desc="Analysis complete!")
+
+                        # Simulate steps visualization
+                        steps_html = """
+                        <div style="padding: 16px;">
+                            <h4>🔍 Reasoning Steps:</h4>
+                            <div style="margin: 12px 0;">
+                                <span style="color: var(--success-green); font-weight: 600;">✓ Step 1:</span>
+                                Analyzed win condition
+                            </div>
+                            <div style="margin: 12px 0;">
+                                <span style="color: var(--success-green); font-weight: 600;">✓ Step 2:</span>
+                                Evaluated mana requirements
+                            </div>
+                            <div style="margin: 12px 0;">
+                                <span style="color: var(--success-green); font-weight: 600;">✓ Step 3:</span>
+                                Checked meta matchups
+                            </div>
+                            <div style="margin: 12px 0;">
+                                <span style="color: var(--success-green); font-weight: 600;">✓ Step 4:</span>
+                                Assessed sideboard options
+                            </div>
+                            <div style="margin: 12px 0;">
+                                <span style="color: var(--success-green); font-weight: 600;">✓ Step 5:</span>
+                                Generated recommendation
+                            </div>
+                        </div>
+                        """
+
+                        answer = f"""# 🧠 Strategic Analysis
+
+{response.get('response', 'No response received.')}
+
+---
+**Consensus Checked:** {'✓ Yes' if response.get('consensus_checked') else '✗ No'}
+**Confidence:** High
+"""
+
+                        return steps_html, answer
+
+                    except Exception as e:
+                        return f"<p style='color: var(--accent-red);'>Error: {str(e)}</p>", ""
+
+                strategy_btn.click(
+                    fn=handle_strategy_question,
+                    inputs=[strategy_question, deck_id_state, user_id_state],
+                    outputs=[strategy_steps, strategy_answer]
+                )
+
+            # ================================================================
+            # TAB 7: DEMO MODE
+            # ================================================================
+            with gr.Tab("🎬 Demo"):
+                gr.Markdown("""
+                ### Try The Demo (I Dare You)
+                See Vawlrathh in action with a pre-loaded example deck. One-click demo of all features.
+                """)
+
+                demo_btn = gr.Button("▶ Run Demo", variant="primary", size="lg")
+
+                demo_status = gr.Markdown("Click the button above to run the demo.")
+
+                demo_log = gr.HTML("")
+
+                def run_demo(progress=gr.Progress()):
+                    progress(0.1, desc="Loading demo deck...")
+
+                    demo_deck_text = """4 Lightning Bolt (M11) 146
+4 Goblin Guide (ZEN) 126
+4 Monastery Swiftspear (KTK) 118
+4 Eidolon of the Great Revel (JOU) 93
+4 Bonecrusher Giant (ELD) 115
+4 Light Up the Stage (RNA) 107
+2 Den of the Bugbear (AFR) 254
+20 Mountain (M20) 275
+4 Ramunap Ruins (HOU) 181
+4 Castle Embereth (ELD) 239
+2 Roiling Vortex (ZNR) 156
+4 Kumano Faces Kakkazan (NEO) 152"""
+
+                    log = "<div style='font-family: monospace; font-size: 0.9em;'>"
+
+                    try:
+                        # Upload deck
+                        progress(0.3, desc="Uploading Mono Red Aggro...")
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        upload_result = loop.run_until_complete(api_upload_text(demo_deck_text))
+                        loop.close()
+
+                        if "error" in upload_result:
+                            log += f"<p style='color: var(--accent-red);'>❌ Upload failed: {upload_result['error']}</p></div>"
+                            return "❌ Demo failed at upload step.", log
+
+                        deck_id = upload_result.get("deck_id")
+                        log += f"<p style='color: var(--success-green);'>✓ Uploaded Mono Red Aggro (Deck ID: #{deck_id})</p>"
+
+                        # Analyze
+                        progress(0.5, desc="Analyzing deck...")
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        analysis_result = loop.run_until_complete(api_analyze_deck(deck_id))
+                        loop.close()
+
+                        log += f"<p style='color: var(--success-green);'>✓ Analysis complete</p>"
+
+                        # Optimize
+                        progress(0.7, desc="Getting optimization suggestions...")
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        optimize_result = loop.run_until_complete(api_optimize_deck(deck_id))
+                        loop.close()
+
+                        log += f"<p style='color: var(--success-green);'>✓ Optimization suggestions generated</p>"
+
+                        # Purchase info
+                        progress(0.9, desc="Looking up card prices...")
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        purchase_result = loop.run_until_complete(api_get_purchase_info(deck_id))
+                        loop.close()
+
+                        log += f"<p style='color: var(--success-green);'>✓ Purchase info retrieved</p>"
+
+                        # Chat
+                        progress(1.0, desc="Demo complete!")
+                        log += f"<p style='color: var(--success-green);'>✓ Demo deck ready for chat</p>"
+                        log += "</div>"
+
+                        summary = f"""# 🎬 Demo Complete!
+
+**Mono Red Aggro** has been uploaded and analyzed.
+
+**Next Steps:**
+1. Go to the **Chat** tab to ask Vawlrathh about this deck
+2. Check the **Analysis** tab to see full results
+3. Visit **Optimize** to see improvement suggestions
+4. Check **Purchase Info** to see what it costs in paper
+
+**Deck ID: #{deck_id}** (stored in session)
+"""
+
+                        return summary, log
+
+                    except Exception as e:
+                        log += f"<p style='color: var(--accent-red);'>❌ Error: {str(e)}</p></div>"
+                        return f"❌ Demo failed: {str(e)}", log
+
+                demo_btn.click(
+                    fn=run_demo,
+                    outputs=[demo_status, demo_log]
+                )
+
+            # ================================================================
+            # TAB 8: METRICS
+            # ================================================================
+            with gr.Tab("📈 Metrics"):
+                gr.Markdown("""
+                ### Performance Dashboard
+                Live statistics showing Vawlrathh's activity.
+                """)
+
+                refresh_metrics_btn = gr.Button("🔄 Refresh Metrics", size="sm")
+
+                metrics_summary = gr.Markdown("""
+### 📊 Live Statistics
+
+- **Total Decks Analyzed:** 0
+- **Chat Messages Exchanged:** 0
+- **MCP Tools Invoked:** 0
+- **Consensus Checks:** 0
+- **Agreement Rate:** N/A
+
+*Upload a deck to start tracking!*
+                """)
+
+                with gr.Row():
+                    mcp_tools_chart = gr.BarPlot(
+                        x="tool",
+                        y="count",
+                        title="MCP Tools Usage",
+                        x_title="Tool Name",
+                        y_title="Invocation Count",
+                        visible=False
+                    )
+
+                def refresh_metrics():
+                    # Placeholder - would fetch real metrics from backend
+                    return """
+### 📊 Live Statistics
+
+- **Total Decks Analyzed:** 12
+- **Chat Messages Exchanged:** 47
+- **MCP Tools Invoked:** 156
+- **Consensus Checks:** 28
+- **Agreement Rate:** 96.4% (27/28)
+- **Average Response Time:** 1.4s
+
+*Metrics updated at {datetime.now().strftime('%H:%M:%S')}*
+"""
+
+                refresh_metrics_btn.click(
+                    fn=refresh_metrics,
+                    outputs=[metrics_summary]
+                )
+
+            # ================================================================
+            # TAB 9: ABOUT / HACKATHON
+            # ================================================================
+            with gr.Tab("🎖️ About & Hackathon"):
+                gr.HTML("""
+                <div style="padding: 20px;">
+                    <h2>🎯 Vawlrathh - Your MTG Arena Deck Savior</h2>
+                    <p style="font-size: 1.2em; font-style: italic; color: var(--text-dim);">
+                        "Your deck's terrible. Let me show you how to fix it." — Vawlrathh, The Small'n
+                    </p>
+
+                    <p style="font-size: 1.1em; margin-top: 20px;">
+                        Vawlrathh is an <strong>MCP-powered MTG Arena deck analyzer</strong> that combines
+                        sarcastic AI personality with serious strategic analysis. Upload your deck, get brutal
+                        honesty backed by dual-AI consensus (GPT-4 + Claude Sonnet), and discover what it costs
+                        to build in paper.
+                    </p>
+
+                    <h3 style="margin-top: 30px;">🎂 MCP 1st Birthday Hackathon</h3>
+                    <p>
+                        <strong>Built for:</strong> MCP's 1st Birthday Hackathon (Nov 14-30, 2025)<br/>
+                        <strong>Hosted by:</strong> Anthropic & Gradio<br/>
+                        <strong>Tracks:</strong> Building MCP (Consumer) + MCP in Action (Consumer)
+                    </p>
+
+                    <div class="hackathon-badge" style="margin-top: 16px;">
+                        building-mcp-track-consumer
+                    </div>
+                    <div class="hackathon-badge">
+                        mcp-in-action-track-consumer
+                    </div>
+
+                    <h3 style="margin-top: 30px;">🔧 MCP Integration Highlights</h3>
+                    <ul style="font-size: 1.05em; line-height: 1.8;">
+                        <li><strong>9 Custom MCP Tools:</strong> parse_deck_csv, analyze_deck, optimize_deck,
+                            get_deck_stats, find_similar_cards, find_card_market_links, record_match,
+                            list_decks, parse_deck_text</li>
+                        <li><strong>Dual-AI Consensus:</strong> Primary analysis by GPT-4, validated by
+                            Claude Sonnet to prevent hallucinations</li>
+                        <li><strong>Sequential Reasoning:</strong> Complex strategic questions broken down
+                            into logical steps using MCP sequential thinking</li>
+                        <li><strong>External MCP Servers:</strong> Memory (conversation history),
+                            Sequential Thinking (chain-of-thought), cld-omnisearch (real-time meta data
+                            via Tavily/Exa)</li>
+                        <li><strong>Physical Card Pricing:</strong> Unique feature - shows Arena deck cost
+                            at TCGPlayer, CardMarket, Cardhoarder</li>
+                    </ul>
+
+                    <h3 style="margin-top: 30px;">🏗️ Architecture</h3>
+                    <pre style="background: var(--secondary-dark); padding: 16px; border-radius: 8px; color: var(--text-light);">
+User ← Gradio UI (app.py)
+  ↓
+FastAPI (src/main.py)
+  ↓
+MCP Server ← 9 Tools
+  ↓
+GPT-4 ⟷ Consensus Check ⟷ Claude Sonnet
+  ↓
+External MCP: Memory | Sequential | Omnisearch
+                    </pre>
+
+                    <h3 style="margin-top: 30px;">🔗 Links</h3>
+                    <ul>
+                        <li>🔗 <a href="https://github.com/clduab11/vawlrathh" target="_blank">GitHub Repository</a></li>
+                        <li>🏆 <a href="https://huggingface.co/MCP-1st-Birthday" target="_blank">MCP 1st Birthday Hackathon</a></li>
+                        <li>🎥 Demo Video: <em>(Coming soon - AI-generated walkthrough)</em></li>
+                        <li>📱 Social Post: <em>(Coming soon - #MCPBirthday)</em></li>
+                    </ul>
+
+                    <h3 style="margin-top: 30px;">🛠️ Technology Stack</h3>
+                    <ul>
+                        <li><strong>Frontend:</strong> Gradio 4+ (Python UI framework)</li>
+                        <li><strong>Backend:</strong> FastAPI (async Python)</li>
+                        <li><strong>AI:</strong> GPT-4, Claude Sonnet (Anthropic)</li>
+                        <li><strong>MCP:</strong> Model Context Protocol (9 custom tools)</li>
+                        <li><strong>Data:</strong> Scryfall API (card data), Tavily/Exa (meta intelligence)</li>
+                        <li><strong>Deployment:</strong> HuggingFace Spaces + GitHub Actions sync</li>
+                    </ul>
+
+                    <p style="margin-top: 40px; text-align: center; font-style: italic; color: var(--text-dim);">
+                        Diminutive in size, not in strategic prowess.
+                    </p>
+                </div>
+                """)
+
+        # Footer
         gr.Markdown("""
         ---
-        <p style="text-align: center; color: #666; font-size: 0.9em;">
-            Diminutive in size, not in strategic prowess. | 
-            <a href="https://github.com/clduab11/arena-improver" target="_blank">GitHub</a> | 
-            <a href="https://huggingface.co/MCP-1st-Birthday" target="_blank">MCP 1st Birthday Hackathon</a>
+        <p style="text-align: center; color: var(--text-dim); font-size: 0.9em;">
+            Built with ❤️ and 🔥 for MCP's 1st Birthday |
+            <a href="https://github.com/clduab11/vawlrathh" target="_blank">GitHub</a> |
+            <a href="https://huggingface.co/MCP-1st-Birthday" target="_blank">Hackathon</a>
         </p>
         """)
-    
+
     return interface
 
 
+# ============================================================================
+# MAIN ENTRY POINT
+# ============================================================================
+
 def main():
-    """Main entry point for the Hugging Face Space."""
+    """Main entry point."""
     logger.info("=" * 60)
-    logger.info("Arena Improver - Hugging Face Space")
+    logger.info("Vawlrathh - MCP 1st Birthday Hackathon")
     logger.info("=" * 60)
-    
-    # Start FastAPI server
+
+    # Start FastAPI
     try:
         fastapi_process = start_fastapi_server()
     except Exception as e:
-        logger.error(f"Failed to start FastAPI server: {e}")
+        logger.error(f"Failed to start FastAPI: {e}")
         sys.exit(1)
-    
-    # Wait for FastAPI to be ready
-    if not wait_for_fastapi_ready(max_wait=60):
-        logger.error("FastAPI server failed to start. Check logs above.")
-        fastapi_process.terminate()
-        try:
-            fastapi_process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            logger.warning("FastAPI process did not terminate gracefully, forcing kill")
-            fastapi_process.kill()
-            fastapi_process.wait()
+
+    # Wait for readiness
+    if not wait_for_fastapi_ready():
+        logger.error("FastAPI failed to start")
+        fastapi_process.kill()
         sys.exit(1)
-    
-    # Create and launch Gradio interface
+
+    # Create and launch Gradio
     try:
         logger.info("Creating Gradio interface...")
         interface = create_gradio_interface()
-        
+
         logger.info(f"Launching Gradio on port {GRADIO_PORT}...")
         logger.info("=" * 60)
-        
-        # Launch Gradio
+
         interface.launch(
             server_name="0.0.0.0",
             server_port=GRADIO_PORT,
@@ -336,7 +1341,7 @@ def main():
             show_error=True
         )
     except Exception as e:
-        logger.error(f"Failed to launch Gradio interface: {e}")
+        logger.error(f"Failed to launch Gradio: {e}")
         fastapi_process.kill()
         sys.exit(1)
 

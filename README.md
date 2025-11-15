@@ -1,5 +1,9 @@
 # Vawlratth, your MTG: Arena Savior
 
+<!-- HACKATHON TAGS - DO NOT REMOVE -->
+**building-mcp-track-consumer**
+**mcp-in-action-track-consumer**
+
 *"Your deck's terrible. Let me show you how to fix it."*
 — **Vawlrathh, The Small'n**
 
@@ -7,6 +11,27 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Hackathon: MCP 1st Birthday](https://img.shields.io/badge/Hackathon-MCP%201st%20Birthday-purple.svg)](https://huggingface.co/MCP-1st-Birthday)
 [![HF Space](https://img.shields.io/badge/🤗-Hugging%20Face%20Space-yellow.svg)](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath)
+
+---
+
+## 🎂 MCP 1st Birthday Hackathon Submission
+
+**🏆 Submission Details:**
+- **Demo Video:** [Coming Soon - AI-Generated Walkthrough]
+- **Social Media Post:** [Coming Soon - #MCPBirthday]
+- **Live Demo:** [Hugging Face Space](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh)
+- **Submission Date:** November 2025
+- **Tracks:** Building MCP (Consumer) + MCP in Action (Consumer)
+
+**🎯 Key Differentiators:**
+1. **9 Custom MCP Tools** - parse_deck_csv, analyze_deck, optimize_deck, get_deck_stats, find_similar_cards, find_card_market_links, record_match, list_decks, parse_deck_text
+2. **Dual-AI Consensus System** - GPT-4 + Claude Sonnet to prevent hallucinations
+3. **Physical Card Pricing** - Unique integration showing Arena deck costs in real cardboard (TCGPlayer, CardMarket, Cardhoarder)
+4. **Sequential Reasoning** - MCP-powered step-by-step strategic analysis
+5. **Character-Driven UX** - Vawlrathh's sarcastic personality throughout
+6. **External MCP Servers** - Memory, Sequential Thinking, cld-omnisearch (Tavily/Exa)
+
+---
 
 ## 🎯 What This Is
 
