@@ -41,7 +41,7 @@
 
 ### Claude PR Review Workflow Behavior
 
-**Concurrency Control**: The workflow uses GitHub Actions concurrency groups (`concurrency.group: claude-pr-review-${{ github.event.pull_request.number }}`), ensuring only one workflow run is active per PR at any time. If you trigger a new run while one is in progress, the old run is canceled automatically via `cancel-in-progress: true`.
+**Concurrency Control**: The workflow uses GitHub Actions concurrency groups (`concurrency.group: claude-pr-review-${{ github.event.pull_request.number || github.run_id }}`), ensuring only one workflow run is active per PR at any time. The `|| github.run_id` fallback ensures the workflow can run in edge cases where the PR number is not available. If you trigger a new run while one is in progress, the old run is canceled automatically via `cancel-in-progress: true`.
 
 **Duplicate Detection**: Before executing the review, the workflow scans existing PR comments for the marker `<!-- claude-review:{headSHA} -->`. If a comment with the current head SHA already exists (posted by `github-actions[bot]`), the workflow skips all subsequent steps. This prevents redundant reviews when the workflow is re-triggered for the same commit.
 
