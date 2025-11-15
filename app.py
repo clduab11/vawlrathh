@@ -14,6 +14,7 @@ import logging
 import json
 import uuid
 import asyncio
+import atexit
 import html
 from datetime import datetime  # noqa: F401 - used in f-string in refresh_metrics
 from typing import Optional, Dict, List, Any
@@ -251,6 +252,26 @@ body {
 
 
 # ============================================================================
+# HTTP CLIENT LIFECYCLE MANAGEMENT
+# ============================================================================
+
+async def initialize_api_client():
+    """Initialize the global HTTP client."""
+    # Client is already initialized at module level
+    # This function can be used for any additional setup if needed
+    logger.info("HTTP client initialized")
+
+
+async def cleanup_api_client():
+    """Close the global HTTP client."""
+    try:
+        await api_client.aclose()
+        logger.info("HTTP client closed")
+    except Exception as e:
+        logger.exception(f"Error closing HTTP client: {e}")
+
+
+# ============================================================================
 # FASTAPI SERVER MANAGEMENT
 # ============================================================================
 
@@ -320,10 +341,9 @@ async def api_upload_csv(csv_file) -> Dict[str, Any]:
     """Upload deck via CSV file."""
     try:
         files = {"file": (csv_file.name, csv_file, "text/csv")}
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(f"{API_BASE_URL}/upload/csv", files=files)
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.post(f"{API_BASE_URL}/upload/csv", files=files, timeout=30)
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "Vawlrathh is taking too long. Try again."}
     except httpx.HTTPError as e:
@@ -335,13 +355,13 @@ async def api_upload_csv(csv_file) -> Dict[str, Any]:
 async def api_upload_text(deck_text: str) -> Dict[str, Any]:
     """Upload deck via Arena text format."""
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(
-                f"{API_BASE_URL}/upload/text",
-                json={"deck_string": deck_text, "format": "Standard"}
-            )
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.post(
+            f"{API_BASE_URL}/upload/text",
+            json={"deck_string": deck_text, "format": "Standard"},
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "That's not a deck, that's a pile. Try again."}
     except httpx.HTTPError as e:
@@ -353,10 +373,9 @@ async def api_upload_text(deck_text: str) -> Dict[str, Any]:
 async def api_analyze_deck(deck_id: int) -> Dict[str, Any]:
     """Analyze a deck."""
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(f"{API_BASE_URL}/analyze/{deck_id}")
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.post(f"{API_BASE_URL}/analyze/{deck_id}", timeout=60)
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "Analysis taking too long. Your deck is that bad."}
     except httpx.HTTPError as e:
@@ -368,10 +387,9 @@ async def api_analyze_deck(deck_id: int) -> Dict[str, Any]:
 async def api_optimize_deck(deck_id: int) -> Dict[str, Any]:
     """Get optimization suggestions."""
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(f"{API_BASE_URL}/optimize/{deck_id}")
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.post(f"{API_BASE_URL}/optimize/{deck_id}", timeout=60)
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "Optimization timeout. Even I have limits."}
     except httpx.HTTPError as e:
@@ -383,10 +401,9 @@ async def api_optimize_deck(deck_id: int) -> Dict[str, Any]:
 async def api_get_purchase_info(deck_id: int) -> Dict[str, Any]:
     """Get physical card purchase information."""
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.get(f"{API_BASE_URL}/purchase/{deck_id}")
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.get(f"{API_BASE_URL}/purchase/{deck_id}", timeout=60)
+        response.raise_for_status()
+        return response.json()
     except httpx.TimeoutException:
         return {"error": "Purchase lookup timeout."}
     except httpx.HTTPError as e:
@@ -398,10 +415,9 @@ async def api_get_purchase_info(deck_id: int) -> Dict[str, Any]:
 async def api_list_decks() -> List[Dict[str, Any]]:
     """List all decks."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(f"{API_BASE_URL}/decks")
-            response.raise_for_status()
-            return response.json()
+        response = await api_client.get(f"{API_BASE_URL}/decks", timeout=10)
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
         logger.exception(f"Failed to list decks: {e}")
         return []
@@ -1421,6 +1437,16 @@ def main():
     logger.info("=" * 60)
     logger.info("Vawlrathh - MCP 1st Birthday Hackathon")
     logger.info("=" * 60)
+
+    # Register cleanup handler for HTTP client
+    def cleanup_on_exit():
+        """Cleanup function to run on exit."""
+        try:
+            asyncio.run(cleanup_api_client())
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+    
+    atexit.register(cleanup_on_exit)
 
     # Start FastAPI
     try:
