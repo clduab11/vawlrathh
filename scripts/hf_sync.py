@@ -175,6 +175,24 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable periodic progress printing.",
     )
+    parser.add_argument(
+        "--create-pr",
+        action="store_true",
+        help=(
+            "Request the Hub to open a PR instead of pushing directly to "
+            "the target branch."
+        ),
+    )
+    parser.add_argument(
+        "--commit-message",
+        default="Sync workspace",
+        help="Commit message to use when pushing or opening a PR.",
+    )
+    parser.add_argument(
+        "--commit-description",
+        default=None,
+        help="Optional extended commit description (PR body).",
+    )
     return parser.parse_args()
 
 
@@ -250,23 +268,37 @@ def main() -> None:
     print(f"  repo_type: {args.repo_type}")
     print(f"  revision: {args.revision}")
     print(f"  folder: {folder}")
+    print(f"  create_pr: {args.create_pr}")
     if allow_patterns:
         print(f"  allow_patterns: {allow_patterns}")
     print(f"  ignore_patterns: {ignore_patterns}")
 
+    upload_kwargs = dict(
+        repo_id=args.repo_id,
+        folder_path=str(folder),
+        repo_type=args.repo_type,
+        revision=args.revision,
+        allow_patterns=allow_patterns,
+        ignore_patterns=ignore_patterns,
+    )
+
     try:
-        api.upload_large_folder(
-            repo_id=args.repo_id,
-            folder_path=str(folder),
-            repo_type=args.repo_type,
-            revision=args.revision,
-            private=args.private,
-            allow_patterns=allow_patterns,
-            ignore_patterns=ignore_patterns,
-            num_workers=args.num_workers,
-            print_report=not args.quiet,
-            print_report_every=args.print_report_every,
-        )
+        if args.create_pr:
+            print("create_pr enabled — using upload_folder helper.")
+            api.upload_folder(
+                **upload_kwargs,
+                commit_message=args.commit_message,
+                commit_description=args.commit_description,
+                create_pr=True,
+            )
+        else:
+            api.upload_large_folder(
+                **upload_kwargs,
+                private=args.private,
+                num_workers=args.num_workers,
+                print_report=not args.quiet,
+                print_report_every=args.print_report_every,
+            )
     except HfHubHTTPError as exc:
         print(f"Upload failed: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
