@@ -50,6 +50,21 @@ WS_BASE_URL = os.getenv(
     f"ws://localhost:{FASTAPI_PORT}",
 )
 
+# Example deck for demo/testing (Mono-Red Aggro)
+DEMO_DECK_TEXT = """4 Monastery Swiftspear (KTK) 118
+4 Kumano Faces Kakkazan (NEO) 152
+4 Lightning Strike (M19) 152
+4 Play with Fire (MID) 154
+4 Embercleave (ELD) 120
+4 Phoenix Chick (DMU) 140
+4 Bloodthirsty Adversary (MID) 129
+3 Bonecrusher Giant (ELD) 115
+3 Fable of the Mirror-Breaker (NEO) 141
+2 Den of the Bugbear (AFR) 254
+20 Mountain (MID) 383
+4 Shock (M21) 159
+"""
+
 
 @dataclass
 class BuilderMetadata:
@@ -521,15 +536,29 @@ def build_deck_uploader_tab():
     gr.Markdown("### Arena Text Export")
     deck_text_input = gr.Textbox(
         lines=10,
-        label="Arena Export",  # guidance label
+        label="Arena Export",
         placeholder="4 Lightning Bolt (M11) 146\n2 Counterspell (MH2) 267",
+        value="",  # Empty by default
     )
     format_dropdown = gr.Dropdown(
         choices=["Standard", "Pioneer", "Modern"],
         value="Standard",
         label="Format",
     )
-    text_upload_btn = gr.Button("Upload Text", variant="secondary")
+
+    # Add demo button for quick testing
+    with gr.Row():
+        text_upload_btn = gr.Button("Upload Text", variant="secondary", scale=2)
+        demo_btn = gr.Button("📋 Load Demo Deck", variant="secondary", scale=1)
+
+    def load_demo():
+        """Load demo deck for easy testing."""
+        return DEMO_DECK_TEXT
+
+    demo_btn.click(  # pylint: disable=no-member
+        fn=load_demo,
+        outputs=deck_text_input,
+    )
 
     def handle_text_upload(deck_text, fmt, previous_id):
         payload = _upload_text_to_api(deck_text, fmt)
@@ -1636,11 +1665,15 @@ def main():
         logger.info("=" * 60)
         
         # Launch Gradio
-        interface.launch(
+        interface.queue(
+            max_size=20,  # Queue up to 20 concurrent users
+            default_concurrency_limit=10  # Process 10 requests simultaneously
+        ).launch(
             server_name="0.0.0.0",
             server_port=GRADIO_PORT,
             share=False,
-            show_error=True
+            show_error=True,
+            max_threads=40,  # HF Spaces default for better concurrency
         )
     except (OSError, RuntimeError) as exc:
         logger.error("Failed to launch Gradio interface: %s", exc)

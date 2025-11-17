@@ -38,5 +38,5 @@ python-dotenv==1.0.1
 psutil==6.1.0
 
 # Hugging Face Space Integration
-gradio>=4.0.0
+gradio>=5.0.0  # Gradio 5 for 40% faster load times and better caching
 huggingface-hub==0.36.0  # last pre-1.0 release that keeps CLI + downstream libs happy

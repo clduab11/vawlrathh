@@ -1,11 +1,22 @@
 ---
+title: Vawlrathh - MTG Arena Deck Analyzer
 emoji: 🎴
 colorFrom: purple
 colorTo: indigo
 sdk: gradio
+sdk_version: 5.0.0
 app_file: app.py
+pinned: true
+tags:
+  - mtg
+  - magic-the-gathering
+  - deck-analysis
+  - deck-building
+  - game-strategy
+  - ai
+  - mcp
+  - hackathon
 license: agpl-3.0
-pinned: false
 ---
 
 <!-- markdownlint-disable MD032 MD031 MD040 -->
