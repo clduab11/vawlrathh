@@ -5,8 +5,7 @@ import logging
 from typing import Optional, Dict, List, Any
 from datetime import datetime, timedelta
 import httpx
-
-from .http_client import get_http_client
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -14,40 +13,19 @@ logger = logging.getLogger(__name__)
 class ScryfallService:
     """Service for interacting with Scryfall API.
     
-    Uses shared HTTP client for connection pooling and efficient rate limiting.
-    Can be used as an async context manager for proper resource management.
+    Uses connection pooling for efficient API access.
+    Can be used as async context manager for proper resource lifecycle.
     """
 
     BASE_URL = "https://api.scryfall.com"
     RATE_LIMIT_DELAY = 0.1  # 100ms between requests (Scryfall rate limit)
     CACHE_DURATION = timedelta(hours=24)
 
-    def __init__(self, client: Optional[httpx.AsyncClient] = None):
-        """Initialize Scryfall service.
-        
-        Args:
-            client: Optional httpx.AsyncClient. If None, uses shared client.
-        """
+    def __init__(self):
+        """Initialize Scryfall service with connection pooling support."""
         self._last_request_time = datetime.now()
         self._cache: Dict[str, tuple[datetime, Any]] = {}
-        self._client = client
-    
-    async def __aenter__(self):
-        """Async context manager entry."""
-        if self._client is None:
-            self._client = await get_http_client()
-        return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
-        # Shared client cleanup is handled by lifespan
-        return False
-    
-    async def _ensure_client(self) -> httpx.AsyncClient:
-        """Ensure we have a client instance."""
-        if self._client is None:
-            self._client = await get_http_client()
-        return self._client
+        self._client: Optional[httpx.AsyncClient] = None
 
     async def _rate_limit(self):
         """Enforce Scryfall rate limit (100ms between requests)."""
@@ -73,6 +51,40 @@ class ScryfallService:
         """Set cached data with timestamp."""
         self._cache[key] = (datetime.now(), data)
 
+    async def _ensure_client(self) -> httpx.AsyncClient:
+        """Create HTTP client with connection pooling if not exists.
+        
+        Returns:
+            httpx.AsyncClient: Client with connection pooling enabled
+        """
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                timeout=10.0,
+                limits=httpx.Limits(
+                    max_keepalive_connections=5,
+                    max_connections=10
+                )
+            )
+        return self._client
+
+    async def __aenter__(self):
+        """Async context manager entry - ensures client is created."""
+        await self._ensure_client()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit - closes client properly."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+        return False
+
+    async def close(self):
+        """Explicitly close the HTTP client."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+
     async def get_card_by_name(
         self,
         card_name: str,
@@ -96,7 +108,8 @@ class ScryfallService:
         await self._rate_limit()
 
         try:
-            client = await self._ensure_client()
+            await self._ensure_client()
+            client = self._client
             params = {"fuzzy": card_name}
             if set_code:
                 params["set"] = set_code
@@ -261,7 +274,8 @@ class ScryfallService:
         await self._rate_limit()
 
         try:
-            client = await self._ensure_client()
+            await self._ensure_client()
+            client = self._client
             response = await client.get(
                 f"{self.BASE_URL}/cards/search",
                 params={

@@ -1,5 +1,6 @@
 """Card market pricing and vendor integration service."""
 
+import asyncio
 import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
@@ -68,7 +69,7 @@ class CardMarketInfo:
 class CardMarketService:
     """Service for fetching card pricing and vendor information.
     
-    Can be used as an async context manager for proper resource management.
+    Uses async context manager for proper lifecycle management of dependencies.
     """
 
     def __init__(self, scryfall_service: Optional[ScryfallService] = None):
@@ -76,23 +77,27 @@ class CardMarketService:
         Initialize card market service.
 
         Args:
-            scryfall_service: Optional ScryfallService instance
+            scryfall_service: Optional ScryfallService instance (deferred creation)
         """
-        self.scryfall = scryfall_service or ScryfallService()
-    
+        self.scryfall = scryfall_service
+
     async def __aenter__(self):
-        """Async context manager entry."""
-        # Ensure scryfall service is initialized
-        if hasattr(self.scryfall, '__aenter__'):
-            await self.scryfall.__aenter__()
+        """Async context manager entry - ensures Scryfall service is initialized."""
+        if not self.scryfall:
+            self.scryfall = ScryfallService()
+        await self.scryfall.__aenter__()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
-        # Cleanup scryfall service
-        if hasattr(self.scryfall, '__aexit__'):
+        """Async context manager exit - properly closes Scryfall service."""
+        if self.scryfall:
             await self.scryfall.__aexit__(exc_type, exc_val, exc_tb)
         return False
+
+    async def close(self):
+        """Explicitly close the Scryfall service."""
+        if self.scryfall:
+            await self.scryfall.close()
 
     async def get_card_market_info(
         self,

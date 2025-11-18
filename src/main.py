@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -14,7 +14,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from .api.routes import router, sql_service
 from .api.websocket_routes import router as ws_router
 from .utils.cache import get_meta_cache, get_deck_cache
-from .services.http_client import start_http_client, shutdown_http_client
 from . import __version__
 
 logger = logging.getLogger(__name__)
@@ -33,12 +32,9 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler for startup/shutdown."""
     # Startup
     await sql_service.init_db()
-    await start_http_client()
-    logger.info("Application startup complete")
     yield
     # Shutdown
-    await shutdown_http_client()
-    logger.info("Application shutdown complete")
+    # Clean up resources if needed
 
 
 app = FastAPI(
