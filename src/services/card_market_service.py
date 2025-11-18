@@ -85,13 +85,17 @@ class CardMarketService:
         """Async context manager entry - ensures Scryfall service is initialized."""
         if not self.scryfall:
             self.scryfall = ScryfallService()
-        await self.scryfall.__aenter__()
+        # Only enter context if not already entered
+        if not getattr(self.scryfall, "_entered", False):
+            await self.scryfall.__aenter__()
+            setattr(self.scryfall, "_entered", True)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit - properly closes Scryfall service."""
-        if self.scryfall:
+        if self.scryfall and getattr(self.scryfall, "_entered", False):
             await self.scryfall.__aexit__(exc_type, exc_val, exc_tb)
+            setattr(self.scryfall, "_entered", False)
         return False
 
     async def close(self):
