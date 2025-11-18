@@ -71,10 +71,10 @@ jobs:
           echo "Checking for blocking calls in async functions..."
           
           # Check for time.sleep in async functions
-          BLOCKING_CALLS=$(grep -rn "time\.sleep" \
+          BLOCKING_CALLS=$(grep -rn "async def" \
             --include="*.py" \
             src/ app.py | \
-            grep -B 10 "async def" || true)
+            grep -A 20 "time\.sleep" || true)
           
           if [ -n "$BLOCKING_CALLS" ]; then
             echo "⚠️  Warning: Found time.sleep() calls near async functions"
