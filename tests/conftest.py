@@ -79,8 +79,10 @@ async def mock_http_client():
 @pytest_asyncio.fixture
 async def scryfall_service(mock_http_client):
     """Scryfall service with mock HTTP client."""
-    async with ScryfallService(client=mock_http_client) as service:
-        yield service
+    service = ScryfallService()
+    service._client = mock_http_client  # Inject mock client
+    async with service as svc:
+        yield svc
 
 
 @pytest_asyncio.fixture

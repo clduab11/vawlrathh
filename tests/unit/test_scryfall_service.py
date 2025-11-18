@@ -21,7 +21,9 @@ async def test_scryfall_service_uses_shared_client(mock_http_client):
     mock_http_client.get.return_value = mock_response
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client  # Inject mock
+    async with service:
         result = await service.get_card_by_name("Lightning Bolt")
     
     # Assert
@@ -43,7 +45,9 @@ async def test_scryfall_service_reuses_client_across_requests(mock_http_client):
     mock_http_client.get.return_value = mock_response
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client  # Inject mock
+    async with service:
         # Make multiple requests
         await service.get_card_by_name("Card 1")
         await service.get_card_by_name("Card 2")
@@ -59,16 +63,15 @@ async def test_scryfall_service_reuses_client_across_requests(mock_http_client):
 async def test_scryfall_service_context_manager_lifecycle():
     """Test async context manager properly initializes and cleans up."""
     # Arrange
-    mock_client = AsyncMock(spec=httpx.AsyncClient)
+    service = ScryfallService()
     
     # Act
-    async with ScryfallService(client=mock_client) as service:
-        # Service should be initialized
-        assert service._client is mock_client
+    async with service:
+        # Service should create client on enter
+        assert service._client is not None
     
-    # After context exit, service should still have the client
-    # (cleanup is handled by FastAPI lifespan, not service)
-    assert service._client is mock_client
+    # After context exit, client should be closed and set to None
+    assert service._client is None
 
 
 @pytest.mark.asyncio
@@ -77,10 +80,16 @@ async def test_scryfall_service_ensure_client():
     # Arrange
     service = ScryfallService()
     
-    # Act - Call _ensure_client without entering context manager
-    # This should get the shared client
-    with pytest.raises(RuntimeError, match="HTTPClientManager not initialized"):
-        await service._ensure_client()
+    # Act - Call _ensure_client - should create a new client
+    client = await service._ensure_client()
+    
+    # Assert
+    assert client is not None
+    assert service._client is client
+    assert isinstance(client, httpx.AsyncClient)
+    
+    # Cleanup
+    await service.close()
 
 
 @pytest.mark.asyncio
@@ -96,7 +105,9 @@ async def test_scryfall_service_rate_limiting(mock_http_client):
     mock_http_client.get.return_value = mock_response
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
         start_time = datetime.now()
         
         # Make two requests
@@ -122,7 +133,9 @@ async def test_scryfall_service_caching(mock_http_client):
     mock_http_client.get.return_value = mock_response
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
         # First request - should hit API
         result1 = await service.get_card_by_name("Cached Card")
         
@@ -147,7 +160,9 @@ async def test_scryfall_service_is_arena_only(mock_http_client):
     mock_http_client.get.return_value = mock_response
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
         is_arena_only = await service.is_arena_only("Digital Card")
     
     # Assert
@@ -167,7 +182,9 @@ async def test_scryfall_service_paper_available(mock_http_client):
     mock_http_client.get.return_value = mock_response
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
         is_arena_only = await service.is_arena_only("Paper Card")
     
     # Assert
@@ -189,7 +206,9 @@ async def test_scryfall_service_search_cards(mock_http_client):
     mock_http_client.get.return_value = mock_response
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
         results = await service.search_cards("Lightning Bolt")
     
     # Assert
@@ -207,7 +226,9 @@ async def test_scryfall_service_handles_404(mock_http_client):
     mock_http_client.get.return_value = mock_response
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
         result = await service.get_card_by_name("Nonexistent Card")
     
     # Assert
@@ -221,7 +242,9 @@ async def test_scryfall_service_handles_timeout(mock_http_client):
     mock_http_client.get.side_effect = httpx.TimeoutException("Request timeout")
     
     # Act
-    async with ScryfallService(client=mock_http_client) as service:
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
         result = await service.get_card_by_name("Test Card")
     
     # Assert
