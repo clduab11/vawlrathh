@@ -393,7 +393,19 @@ Already set up in `mcp_config.json`. Don't touch it unless you know what you're 
 
 ## 📚 Documentation
 
-- **[HF Deployment Guide](docs/HF_DEPLOYMENT.md)**: Hugging Face Space setup and configuration
+Documentation is organized hierarchically: root files provide overviews, while `docs/` contains detailed guides.
+
+### Core Documentation
+
+| Document | Purpose |
+|----------|---------|
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | General deployment overview, local/Docker setup |
+| **[docs/HF_DEPLOYMENT.md](docs/HF_DEPLOYMENT.md)** | Comprehensive HuggingFace Spaces deployment |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System architecture, async patterns, service design |
+| **[CLAUDE.md](CLAUDE.md)** | Claude AI integration for automated code reviews |
+
+### Additional Guides
+
 - **[Hackathon Features](docs/HACKATHON_FEATURES.md)**: Complete feature breakdown
 - **[Steam Arena Guide](docs/STEAM_ARENA_GUIDE.md)**: Platform-specific help
 - **[MCP Security](docs/MCP_SECURITY.md)**: Security best practices

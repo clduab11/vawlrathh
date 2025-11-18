@@ -3,6 +3,11 @@
 *"Follow these instructions exactly. Don't improvise."*
 — **Vawlrathh, The Small'n**
 
+> **📖 Related Documentation:**
+> - **[docs/HF_DEPLOYMENT.md](docs/HF_DEPLOYMENT.md)** - Detailed HuggingFace Spaces deployment guide
+> - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and async patterns
+> - **[CLAUDE.md](CLAUDE.md)** - Claude AI integration for code reviews
+
 ## 📋 Table of Contents
 
 1. [Quick Start (5 Minutes)](#quick-start-5-minutes)
@@ -151,76 +156,17 @@ pytest --cov=src tests/
 
 ### Overview
 
-Arena Improver auto-syncs from GitHub to HuggingFace Space on every push to the `main` branch.
+Arena Improver can be deployed to HuggingFace Spaces for a live, accessible demo.
 
 **Live Space**: https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath
 
-### One-Time Setup
+> **📘 For detailed HF deployment instructions**, including manual CLI sync workflows, secret management, troubleshooting, and monitoring, see **[docs/HF_DEPLOYMENT.md](docs/HF_DEPLOYMENT.md)**.
 
-#### Step 1: Get HuggingFace Token (2 minutes)
+### Quick Setup Summary
 
-1. Visit: https://huggingface.co/settings/tokens
-2. Click **"New token"**
-3. Name: `arena-improver-sync`
-4. Permissions: **"Write"** ✅
-5. Click **"Generate token"**
-6. **Copy the token** (you won't see it again!)
-
-#### Step 2: Add to GitHub Secrets (2 minutes)
-
-1. Visit: https://github.com/clduab11/arena-improver/settings/secrets/actions
-2. Click **"New repository secret"**
-3. Name: `HF_TOKEN`
-4. Value: Paste your token from Step 1
-5. Click **"Add secret"**
-
-#### Step 3: Configure HF Space API Keys (3 minutes)
-
-1. Visit: https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath/settings
-2. Scroll to **"Repository secrets"**
-3. Add these secrets:
-
-| Secret Name | Required | Get From |
-|-------------|----------|----------|
-| `OPENAI_API_KEY` | ✅ Yes | https://platform.openai.com/api-keys |
-| `ANTHROPIC_API_KEY` | ✅ Yes | https://console.anthropic.com/ |
-| `TAVILY_API_KEY` | ⚠️ Recommended | https://tavily.com/ |
-| `EXA_API_KEY` | ⚠️ Recommended | https://exa.ai/ |
-
-### Deployment Workflow
-
-#### Automatic Deployment
-
-Every push to `main` triggers automatic sync:
-
-```bash
-git push origin main
-```
-
-GitHub Actions will:
-1. Checkout the code
-2. Push to HuggingFace Space
-3. HF Space will automatically restart
-4. FastAPI starts on port 7860
-5. Gradio starts on port 7861
-
-#### Manual Deployment
-
-Trigger a manual sync:
-
-1. Visit: https://github.com/clduab11/arena-improver/actions/workflows/sync-to-hf.yml
-2. Click **"Run workflow"**
-3. Select branch: `main`
-4. Click **"Run workflow"**
-
-### Verification
-
-After deployment:
-
-1. **Check Sync Status**: https://github.com/clduab11/arena-improver/actions
-2. **Visit Space**: https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath
-3. **Check Status Tab**: Should show all API keys as "✓ Configured"
-4. **Test API**: Try the "API Documentation" tab
+1. **Get HF Token**: Visit https://huggingface.co/settings/tokens → Create token with **Write** permissions
+2. **Configure Space Secrets**: Add `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and optionally `TAVILY_API_KEY`, `EXA_API_KEY` to Space settings
+3. **Sync Code**: Use the CLI command in `docs/HF_DEPLOYMENT.md` to push code to the Space
 
 ### Architecture
 
@@ -546,8 +492,15 @@ Metrics include:
 
 ## Additional Resources
 
-- **Full HF Guide**: [docs/HF_DEPLOYMENT.md](docs/HF_DEPLOYMENT.md)
-- **HF Quick Reference**: [HUGGINGFACE_SPACE_SETUP.md](HUGGINGFACE_SPACE_SETUP.md)
+### Documentation Hierarchy
+
+- **This file** (`DEPLOYMENT.md`) - General deployment overview and local/Docker setup
+- **[docs/HF_DEPLOYMENT.md](docs/HF_DEPLOYMENT.md)** - Comprehensive HuggingFace Spaces guide
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture, async patterns, and service design
+- **[CLAUDE.md](CLAUDE.md)** - Claude AI integration for automated code reviews
+
+### External Links
+
 - **GitHub Repository**: https://github.com/clduab11/arena-improver
 - **Live HF Space**: https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath
 - **MCP Hackathon**: https://huggingface.co/MCP-1st-Birthday

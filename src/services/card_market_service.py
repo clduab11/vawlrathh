@@ -1,4 +1,14 @@
-"""Card market pricing and vendor integration service."""
+"""Card market pricing and vendor integration service.
+
+This service provides card pricing and vendor information by leveraging the
+ScryfallService. Use as an async context manager for proper lifecycle management:
+
+    async with CardMarketService() as service:
+        info = await service.get_card_market_info("Lightning Bolt")
+
+The service manages the ScryfallService lifecycle automatically when used as
+a context manager, ensuring proper connection pooling and cleanup.
+"""
 
 import asyncio
 import logging
@@ -67,16 +77,55 @@ class CardMarketInfo:
 
 
 class CardMarketService:
-    """Service for fetching card pricing and vendor information."""
+    """Service for fetching card pricing and vendor information.
+
+    Uses ScryfallService for card data and pricing. Supports async context
+    manager pattern for proper resource management and connection pooling.
+
+    Example:
+        async with CardMarketService() as service:
+            info = await service.get_card_market_info("Lightning Bolt")
+    """
 
     def __init__(self, scryfall_service: Optional[ScryfallService] = None):
         """
         Initialize card market service.
 
         Args:
-            scryfall_service: Optional ScryfallService instance
+            scryfall_service: Optional ScryfallService instance. If not provided,
+                one will be created when entering the async context or on first use.
         """
-        self.scryfall = scryfall_service or ScryfallService()
+        self.scryfall = scryfall_service
+        self._owns_scryfall = scryfall_service is None
+
+    async def _ensure_scryfall(self) -> None:
+        """Ensure ScryfallService is initialized and ready."""
+        if self.scryfall is None:
+            self.scryfall = ScryfallService()
+            self._owns_scryfall = True
+        await self.scryfall._ensure_client()
+
+    async def __aenter__(self) -> "CardMarketService":
+        """Enter async context manager, initializing the ScryfallService."""
+        if self.scryfall is None:
+            self.scryfall = ScryfallService()
+            self._owns_scryfall = True
+        await self.scryfall.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit async context manager, cleaning up the ScryfallService."""
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the service and release resources.
+
+        Only closes the ScryfallService if this service owns it (i.e., it was
+        created internally rather than passed in).
+        """
+        if self.scryfall is not None and self._owns_scryfall:
+            await self.scryfall.close()
+            self.scryfall = None
 
     async def get_card_market_info(
         self,
@@ -95,6 +144,8 @@ class CardMarketService:
         Returns:
             CardMarketInfo or None if Arena-only and excluded
         """
+        await self._ensure_scryfall()
+
         # Check if card is Arena-only
         is_arena_only = await self.scryfall.is_arena_only(card_name, set_code)
 
@@ -191,6 +242,8 @@ class CardMarketService:
         Returns:
             Dict with deck market summary
         """
+        await self._ensure_scryfall()
+
         card_market_info = []
         total_price_usd = 0.0
         arena_only_cards = []
@@ -291,6 +344,8 @@ class CardMarketService:
         Returns:
             List of alternative card market info
         """
+        await self._ensure_scryfall()
+
         # Search for all printings of the card
         search_query = f'!"{card_name}" game:paper'
         cards = await self.scryfall.search_cards(search_query, unique="prints")
@@ -337,6 +392,8 @@ class CardMarketService:
         Returns:
             Dict mapping card name to list of budget alternatives
         """
+        await self._ensure_scryfall()
+
         replacements = {}
 
         for card_name, quantity in expensive_cards:

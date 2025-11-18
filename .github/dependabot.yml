@@ -1,0 +1,55 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      # Group testing dependencies together
+      testing:
+        patterns:
+          - "pytest*"
+          - "coverage"
+          - "mock"
+      # Group HTTP client dependencies
+      http:
+        patterns:
+          - "httpx"
+          - "websockets"
+          - "aiohttp"
+      # Group AI/ML dependencies
+      ai:
+        patterns:
+          - "openai"
+          - "anthropic"
+          - "langchain*"
+    ignore:
+      # Ignore major version updates for critical packages
+      # until manually reviewed
+      - dependency-name: "sqlalchemy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "gradio"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"

@@ -1,4 +1,20 @@
-"""Scryfall API integration for card data and Arena availability."""
+"""Scryfall API integration for card data and Arena availability.
+
+This service uses a shared AsyncClient with connection pooling for efficient
+HTTP requests. Use as an async context manager for proper lifecycle management:
+
+    async with ScryfallService() as service:
+        card = await service.get_card_by_name("Lightning Bolt")
+
+Or manually manage the client lifecycle:
+
+    service = ScryfallService()
+    await service._ensure_client()
+    try:
+        card = await service.get_card_by_name("Lightning Bolt")
+    finally:
+        await service.close()
+"""
 
 import asyncio
 import logging
@@ -11,16 +27,61 @@ logger = logging.getLogger(__name__)
 
 
 class ScryfallService:
-    """Service for interacting with Scryfall API."""
+    """Service for interacting with Scryfall API.
+
+    Uses connection pooling for efficient HTTP requests. The shared AsyncClient
+    reuses TCP connections, which is especially beneficial given Scryfall's
+    100ms rate limit between requests.
+
+    Attributes:
+        BASE_URL: Scryfall API base URL.
+        RATE_LIMIT_DELAY: Minimum delay between requests (100ms).
+        CACHE_DURATION: How long to cache responses (24 hours).
+    """
 
     BASE_URL = "https://api.scryfall.com"
     RATE_LIMIT_DELAY = 0.1  # 100ms between requests (Scryfall rate limit)
     CACHE_DURATION = timedelta(hours=24)
 
     def __init__(self):
-        """Initialize Scryfall service."""
+        """Initialize Scryfall service with connection pooling support."""
         self._last_request_time = datetime.now()
         self._cache: Dict[str, tuple[datetime, Any]] = {}
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def _ensure_client(self) -> None:
+        """Ensure the shared AsyncClient is initialized.
+
+        Creates the client with connection pooling settings optimized for
+        Scryfall's rate limits. Reuses existing client if already created.
+        """
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                timeout=10.0,
+                limits=httpx.Limits(
+                    max_keepalive_connections=5,
+                    max_connections=10
+                )
+            )
+
+    async def __aenter__(self) -> "ScryfallService":
+        """Enter async context manager, initializing the HTTP client."""
+        await self._ensure_client()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit async context manager, closing the HTTP client."""
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the HTTP client and release resources.
+
+        Safe to call multiple times. Should be called when done with the service
+        to prevent resource leaks.
+        """
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
 
     async def _rate_limit(self):
         """Enforce Scryfall rate limit (100ms between requests)."""
@@ -69,27 +130,26 @@ class ScryfallService:
         await self._rate_limit()
 
         try:
-            async with httpx.AsyncClient() as client:
-                params = {"fuzzy": card_name}
-                if set_code:
-                    params["set"] = set_code
+            await self._ensure_client()
+            params = {"fuzzy": card_name}
+            if set_code:
+                params["set"] = set_code
 
-                response = await client.get(
-                    f"{self.BASE_URL}/cards/named",
-                    params=params,
-                    timeout=10.0
-                )
+            response = await self._client.get(
+                f"{self.BASE_URL}/cards/named",
+                params=params
+            )
 
-                if response.status_code == 200:
-                    data = response.json()
-                    self._set_cached(cache_key, data)
-                    return data
-                elif response.status_code == 404:
-                    logger.warning(f"Card not found on Scryfall: {card_name}")
-                    return None
-                else:
-                    logger.error(f"Scryfall API error {response.status_code}: {response.text}")
-                    return None
+            if response.status_code == 200:
+                data = response.json()
+                self._set_cached(cache_key, data)
+                return data
+            elif response.status_code == 404:
+                logger.warning(f"Card not found on Scryfall: {card_name}")
+                return None
+            else:
+                logger.error(f"Scryfall API error {response.status_code}: {response.text}")
+                return None
 
         except httpx.TimeoutException:
             logger.error(f"Timeout fetching card: {card_name}")
@@ -234,25 +294,24 @@ class ScryfallService:
         await self._rate_limit()
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.BASE_URL}/cards/search",
-                    params={
-                        "q": query,
-                        "unique": unique,
-                        "order": order
-                    },
-                    timeout=10.0
-                )
+            await self._ensure_client()
+            response = await self._client.get(
+                f"{self.BASE_URL}/cards/search",
+                params={
+                    "q": query,
+                    "unique": unique,
+                    "order": order
+                }
+            )
 
-                if response.status_code == 200:
-                    data = response.json()
-                    cards = data.get("data", [])
-                    self._set_cached(cache_key, cards)
-                    return cards
-                else:
-                    logger.error(f"Scryfall search error {response.status_code}: {response.text}")
-                    return []
+            if response.status_code == 200:
+                data = response.json()
+                cards = data.get("data", [])
+                self._set_cached(cache_key, cards)
+                return cards
+            else:
+                logger.error(f"Scryfall search error {response.status_code}: {response.text}")
+                return []
 
         except Exception as e:
             logger.error(f"Error searching Scryfall: {e}")

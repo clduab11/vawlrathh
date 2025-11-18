@@ -1,6 +1,11 @@
 # Hugging Face Space Deployment Guide
 
-This guide explains how to deploy and configure Arena Improver on Hugging Face Spaces now that synchronization is handled manually instead of through GitHub Actions.
+This guide provides comprehensive instructions for deploying and configuring Arena Improver on Hugging Face Spaces. For general deployment options (local/Docker), see the root **[DEPLOYMENT.md](../DEPLOYMENT.md)**.
+
+> **📖 Related Documentation:**
+> - **[../DEPLOYMENT.md](../DEPLOYMENT.md)** - General deployment overview, local setup, Docker
+> - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and async patterns
+> - **[../CLAUDE.md](../CLAUDE.md)** - Claude AI integration for code reviews
 
 ## 🎯 Overview
 
@@ -192,14 +197,124 @@ export ANTHROPIC_API_KEY="your-key"
 export TAVILY_API_KEY="your-key"  # optional
 export EXA_API_KEY="your-key"      # optional
 
-# Run the Space
+# Run the Space (full Gradio + FastAPI setup)
 python app.py
 ```
 
 This will:
-- Start FastAPI on port 7860
-- Start Gradio on port 7861
+- Start FastAPI on port 7860 (configured in `app.py:FASTAPI_PORT`)
+- Start Gradio on port 7861 (configured in `app.py:GRADIO_PORT`)
 - Open browser to http://localhost:7861
+
+### Testing Async Services
+
+The services now use connection pooling with async context managers:
+
+```bash
+# Run unit tests for async services
+pytest tests/unit/test_scryfall_service.py -v
+pytest tests/unit/test_card_market_service.py -v
+
+# Run integration tests (requires FastAPI running)
+pytest tests/integration/test_hf_space.py -v
+
+# Test with coverage
+pytest --cov=src tests/
+```
+
+### Testing FastAPI Directly
+
+For API-only testing without Gradio:
+
+```bash
+uvicorn src.main:app --port 8000 --reload
+# Access API docs at http://localhost:8000/docs
+```
+
+## 📈 Monitoring & Health
+
+### Space Logs
+
+View real-time logs:
+1. Go to your Space: https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh
+2. Click "View logs" (top right)
+3. Monitor startup, requests, and errors
+
+### Health Endpoints
+
+```bash
+# Basic health check
+curl https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh/+/proxy/7860/health
+
+# Detailed status
+curl https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh/+/proxy/7860/status
+
+# Gradio UI health
+curl -I https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh/+/proxy/7861/
+```
+
+### Auto-Restart Behavior
+
+HF Spaces automatically restart when:
+- The Space crashes or hangs
+- Memory limits are exceeded
+- A new commit is merged to the Space
+
+You can also manually restart from **Settings → Runtime**.
+
+### Performance Metrics
+
+Monitor via the `/metrics` endpoint or HF Space logs:
+- Request latency
+- Memory usage
+- Connection pool utilization
+
+## 🔄 Common Issues & Rollbacks
+
+### Rollback to Previous Version
+
+If a bad deployment occurs:
+
+```bash
+# View Space commit history
+git clone https://huggingface.co/spaces/MCP-1st-Birthday/vawlrathh hf-space-clone
+cd hf-space-clone
+git log --oneline
+
+# Revert to a previous commit
+git revert HEAD
+git push origin main
+
+# Or reset to a specific commit (use with caution)
+git reset --hard <commit-sha>
+git push origin main --force
+```
+
+### Port Conflicts
+
+**Problem**: "Address already in use" on ports 7860/7861
+
+**Solution**: The `app.py` automatically kills existing uvicorn processes. If issues persist:
+1. Restart the Space from Settings → Runtime
+2. Check for competing processes in Space logs
+
+### Dependency Failures
+
+**Problem**: Package installation fails during Space build
+
+**Solutions**:
+1. Check `requirements.txt` for version conflicts
+2. Ensure Python version compatibility (3.9+)
+3. Review Space build logs for specific errors
+
+### Connection Pool Exhaustion
+
+**Problem**: "Connection pool exhausted" errors
+
+**Solutions**:
+1. Services now use shared connection pooling (see `docs/ARCHITECTURE.md`)
+2. Increase `max_connections` in service config if needed
+3. Ensure proper async context manager usage for cleanup
 
 ## 🚨 Troubleshooting
 

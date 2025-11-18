@@ -1,8 +1,15 @@
-"""Integration tests for Hugging Face Space wrapper."""
+"""Integration tests for Hugging Face Space wrapper.
+
+Tests the HF Space wrapper including FastAPI startup, Gradio interface
+creation, and async service integrations.
+"""
 
 import subprocess
 import time
+
 import httpx
+import pytest
+import pytest_asyncio
 
 
 def test_app_imports():
@@ -12,6 +19,9 @@ def test_app_imports():
     assert hasattr(app, 'start_fastapi_server')
     assert hasattr(app, 'wait_for_fastapi_ready')
     assert hasattr(app, 'create_gradio_interface')
+    # New async components
+    assert hasattr(app, 'get_shared_client')
+    assert hasattr(app, 'close_shared_client')
 
 
 def test_gradio_interface_creation():
@@ -67,6 +77,50 @@ def test_fastapi_server_can_start():
 def test_kill_existing_uvicorn():
     """Test that kill_existing_uvicorn doesn't error."""
     from app import kill_existing_uvicorn
-    
+
     # Should not raise an error even if no processes exist
     kill_existing_uvicorn()
+
+
+@pytest.mark.asyncio
+async def test_shared_client_lifecycle():
+    """Test that shared client can be created and closed."""
+    from app import get_shared_client, close_shared_client
+
+    # Get client
+    client = await get_shared_client()
+    assert client is not None
+
+    # Same client should be returned
+    client2 = await get_shared_client()
+    assert client is client2
+
+    # Close client
+    await close_shared_client()
+
+
+@pytest.mark.asyncio
+async def test_async_upload_handlers():
+    """Test that async upload handlers work correctly with validation."""
+    from app import _upload_csv_to_api, _upload_text_to_api
+
+    # Test empty CSV
+    result = await _upload_csv_to_api(None)
+    assert result["status"] == "error"
+    assert "No CSV" in result["message"]
+
+    # Test empty text
+    result = await _upload_text_to_api("", "Standard")
+    assert result["status"] == "error"
+    assert "empty" in result["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_async_meta_handlers():
+    """Test that async meta handlers handle errors gracefully."""
+    from app import _fetch_memory_summary
+
+    # Test missing deck ID
+    result = await _fetch_memory_summary(None)
+    assert result["status"] == "error"
+    assert "Deck ID required" in result["message"]
