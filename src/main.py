@@ -62,6 +62,20 @@ app.include_router(ws_router, prefix="/api/v1", tags=["chat"])
 # API info is available at /docs (Swagger UI) and /redoc (ReDoc)
 
 
+@app.get("/", include_in_schema=False)
+async def deprecated_root():
+    """
+    Deprecated root endpoint.
+    This endpoint has moved to /api. This is a breaking change as of version 2.0.0.
+    """
+    return JSONResponse(
+        status_code=410,
+        content={
+            "detail": "The root endpoint `/` has been removed. Please use `/api` for API information.",
+            "new_endpoint": "/api",
+            "deprecation": "This is a breaking change as of version 2.0.0. See CHANGELOG.md for details."
+        }
+    )
 @app.get("/api")
 async def api_info():
     """API information endpoint."""
