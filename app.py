@@ -675,10 +675,12 @@ def create_combined_app():
     return combined_app
 
 
-# Create the combined app at module level for uvicorn
-app = create_combined_app()
+# Factory function to create the combined app for uvicorn or testing
+def get_app():
+    return create_combined_app()
 
-
+# Create the app at module level for ASGI servers (e.g., uvicorn)
+app = get_app()
 def main():
     """Main entry point for the Hugging Face Space."""
     logger.info("=" * 60)
