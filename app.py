@@ -74,6 +74,18 @@ def initialize_gpu():
     return {"gpu": None, "cuda_available": False}
 
 
+@spaces.GPU(duration=0)
+def warmup_gpu():
+    """Zero-duration GPU call to satisfy ZeroGPU startup check."""
+    pass
+
+
+if HF_SPACE_ENVIRONMENT:
+    # Launch warmup in background to register with ZeroGPU without blocking
+    import threading
+    threading.Thread(target=warmup_gpu, daemon=True).start()
+
+
 # Try to import the main FastAPI app
 try:
     from src.main import app as fastapi_app
