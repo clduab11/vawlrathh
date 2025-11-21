@@ -9,6 +9,8 @@ FastAPI endpoints are available at /api/v1/*, /docs, /health, etc.
 
 "Your deck's terrible. Let me show you how to fix it."
 — Vawlrathh, The Small'n
+
+# Force sync
 """
 
 # pylint: disable=no-member
