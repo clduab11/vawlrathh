@@ -68,11 +68,7 @@ app.include_router(ws_router, prefix="/api/v1", tags=["chat"])
 #   - /redoc - ReDoc API documentation
 
 
-@app.get("/")
-async def root():
-    """Redirect root to Gradio UI."""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/gradio")
+# Root endpoint removed as Gradio is now mounted at root path in app.py
 
 
 @app.get("/api")
