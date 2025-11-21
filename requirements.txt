@@ -14,7 +14,7 @@ numpy==2.2.1
 
 # Database
 sqlalchemy==2.0.36
-aiosqlite==0.20.0
+aiosqlite==0.21.0
 
 # Async file I/O
 aiofiles==23.2.1  # Gradio requires <24.0
