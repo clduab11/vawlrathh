@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import psutil
@@ -66,14 +66,7 @@ app.include_router(ws_router, prefix="/api/v1", tags=["chat"])
 #   - /redoc - ReDoc API documentation
 
 
-@app.get("/", include_in_schema=False)
-async def root():
-    """Redirect root path to Gradio UI.
-    
-    HuggingFace Spaces and users expect the root path to be accessible.
-    This redirects to the Gradio interface mounted at /gradio.
-    """
-    return RedirectResponse(url="/gradio")
+# Root endpoint removed as Gradio is now mounted at root path in app.py
 
 
 @app.get("/api")
@@ -243,8 +236,6 @@ async def status():
 
 
 if __name__ == "__main__":
-    import os
-
     # Note: 0.0.0.0 binds to all interfaces for Docker/production use
     # Use 127.0.0.1 for local development to restrict access
     host = os.getenv("API_HOST", "127.0.0.1")
