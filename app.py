@@ -13,14 +13,11 @@ FastAPI endpoints are available at /api/v1/*, /docs, /health, etc.
 
 # pylint: disable=no-member
 
-import asyncio
 import json
 import logging
 import os
-import subprocess
 import sys
 import textwrap
-import time
 import uuid
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
@@ -31,10 +28,50 @@ import httpx
 import uvicorn
 import websockets
 
-from src.main import app as fastapi_app
+import traceback
 
-logging.basicConfig(level=logging.INFO)
+# Ensure project root is in python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
+
+# Try to import the main FastAPI app
+try:
+    from src.main import app as fastapi_app
+    logger.info("Successfully imported FastAPI app from src.main")
+except Exception as e:
+    logger.error(f"Failed to import FastAPI app: {e}")
+    logger.error(traceback.format_exc())
+    
+    # Capture error details for the closure
+    error_msg = str(e)
+    error_traceback = traceback.format_exc()
+    
+    # Create a minimal FastAPI app as fallback
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    
+    fastapi_app = FastAPI(title="Arena Improver - Recovery Mode")
+    
+    @fastapi_app.get("/")
+    def read_root():
+        return {
+            "status": "error",
+            "message": "Main application failed to load",
+            "error": error_msg,
+            "details": error_traceback.splitlines()
+        }
+        
+    @fastapi_app.get("/health")
+    def health_check():
+        return {"status": "recovery_mode", "error": error_msg}
+
+    logger.warning("Running in Recovery Mode due to import failure")
 
 # Module-level shared HTTP client for async handlers with connection pooling
 client: Optional[httpx.AsyncClient] = None
