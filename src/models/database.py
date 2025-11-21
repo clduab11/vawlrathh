@@ -25,7 +25,7 @@ def utcnow() -> datetime:
 
 
 class DeckModel(Base):
-    """SQLAlchemy model for decks."""
+    """SQLAlchemy model timezone.utc decks."""
     
     __tablename__ = "decks"
     
