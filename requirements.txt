@@ -37,5 +37,5 @@ python-dotenv==1.0.1
 psutil==6.1.0
 
 # Hugging Face Space Integration
-gradio>=4.0.0
+gradio>=5.0.0
 huggingface-hub<1.0
