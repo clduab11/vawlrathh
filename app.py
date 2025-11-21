@@ -107,23 +107,7 @@ except Exception as e:
 
     logger.warning("Running in Recovery Mode due to import failure")
 
-# Module-level shared HTTP client for async handlers with connection pooling
-client: Optional[httpx.AsyncClient] = None
-
-
-async def get_shared_client() -> httpx.AsyncClient:
-    """Get or create shared HTTP client with connection pooling.
-    
-    Returns:
-        httpx.AsyncClient: Shared client instance with connection pooling
-    """
-    global client
-    if not client:
-        client = httpx.AsyncClient(
-            timeout=60.0,
-            limits=httpx.Limits(max_keepalive_connections=10)
-        )
-    return client
+from src.services.http_client import HTTPClientManager
 
 # HF Space configuration - single port for both FastAPI and Gradio
 FASTAPI_PORT = 7860  # HF Spaces only exposes port 7860
@@ -190,7 +174,7 @@ async def _upload_csv_to_api(file_path: Optional[str]) -> Dict[str, Any]:
             files = {
                 "file": (os.path.basename(file_path), file_handle, "text/csv"),
             }
-            shared_client = await get_shared_client()
+            shared_client = HTTPClientManager.get_client()
             response = await shared_client.post(
                 f"{API_BASE_URL}/api/v1/upload/csv",
                 files=files,
@@ -220,7 +204,7 @@ async def _upload_text_to_api(deck_text: str, fmt: str) -> Dict[str, Any]:
 
     payload = {"deck_string": deck_text, "format": fmt}
     try:
-        shared_client = await get_shared_client()
+        shared_client = HTTPClientManager.get_client()
         response = await shared_client.post(
             f"{API_BASE_URL}/api/v1/upload/text",
             json=payload,
@@ -244,7 +228,7 @@ async def _fetch_meta_snapshot(game_format: str) -> Dict[str, Any]:
     """Fetch meta intelligence for a specific format (async)."""
 
     try:
-        shared_client = await get_shared_client()
+        shared_client = HTTPClientManager.get_client()
         response = await shared_client.get(
             f"{API_BASE_URL}/api/v1/meta/{game_format}",
             timeout=60,
@@ -269,7 +253,7 @@ async def _fetch_memory_summary(deck_id: Optional[float]) -> Dict[str, Any]:
         return {"status": "error", "message": "Deck ID required"}
 
     try:
-        shared_client = await get_shared_client()
+        shared_client = HTTPClientManager.get_client()
         response = await shared_client.get(
             f"{API_BASE_URL}/api/v1/stats/{int(deck_id)}",
             timeout=60,
@@ -787,11 +771,7 @@ def get_app():
 app = get_app()
 
 
-@fastapi_app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup resources on shutdown."""
-    if client:
-        await client.aclose()
+
 
 
 def main():
@@ -803,13 +783,8 @@ def main():
     logger.info("=" * 60)
 
     # Launch the combined app with uvicorn
-    uvicorn.run(
-        "app:app",
-        host="0.0.0.0",
-        port=FASTAPI_PORT,
-        log_level="info",
-        loop="asyncio",
-    )
+    # Pass the app object directly to prevent double initialization
+    uvicorn.run(app, host="0.0.0.0", port=FASTAPI_PORT, log_level="info")
 
 
 if __name__ == "__main__":
