@@ -1,4 +1,4 @@
-"""Hugging Face Space wrapper for Arena Improver.
+"""Hugging Face Space wrapper for Vawlrathh.
 
 This module provides a combined Gradio + FastAPI application for deployment
 on Hugging Face Spaces. Both services run on port 7860 (HF Space default)
@@ -71,13 +71,6 @@ def initialize_gpu():
         return {"gpu": device, "cuda_available": True}
     return {"gpu": None, "cuda_available": False}
 
-# Initialize GPU if running in a Spaces environment
-if HF_SPACE_ENVIRONMENT:
-    try:
-        gpu_info = initialize_gpu()
-        logger.info(f"GPU initialization result: {gpu_info}")
-    except Exception as e:
-        logger.warning(f"GPU initialization failed (running on CPU): {e}")
 
 # Try to import the main FastAPI app
 try:
@@ -95,7 +88,7 @@ except Exception as e:
     from fastapi import FastAPI
     from fastapi.responses import JSONResponse
     
-    fastapi_app = FastAPI(title="Arena Improver - Recovery Mode")
+    fastapi_app = FastAPI(title="Vawlrathh - Recovery Mode")
     
     @fastapi_app.get("/")
     def read_root():
@@ -132,7 +125,7 @@ async def get_shared_client() -> httpx.AsyncClient:
 
 # HF Space configuration - single port for both FastAPI and Gradio
 FASTAPI_PORT = 7860  # HF Spaces only exposes port 7860
-REPO_URL = "https://github.com/clduab11/arena-improver"
+REPO_URL = "https://github.com/clduab11/vawlrathh"
 HACKATHON_URL = "https://huggingface.co/MCP-1st-Birthday"
 HF_DEPLOYMENT_GUIDE_URL = f"{REPO_URL}/blob/main/docs/HF_DEPLOYMENT.md"
 # Both services run on the same port now - these URLs point to localhost
@@ -184,7 +177,6 @@ def builder_registry(
     return decorator
 
 
-@spaces.GPU(duration=60)
 async def _upload_csv_to_api(file_path: Optional[str]) -> Dict[str, Any]:
     """Upload a CSV file to the FastAPI backend with defensive logging (async)."""
 
@@ -218,7 +210,6 @@ async def _upload_csv_to_api(file_path: Optional[str]) -> Dict[str, Any]:
         return {"status": "error", "message": str(exc)}
 
 
-@spaces.GPU(duration=60)
 async def _upload_text_to_api(deck_text: str, fmt: str) -> Dict[str, Any]:
     """Upload Arena text export to the FastAPI backend (async)."""
 
@@ -306,6 +297,24 @@ async def _check_chat_websocket() -> Dict[str, Any]:
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("WebSocket connection failed: %s", exc)
         return {"status": "error", "message": str(exc), "endpoint": ws_url}
+
+
+def build_gpu_status_tab():
+    """GPU status and initialization tab."""
+    gr.Markdown("## GPU Status")
+    
+    gpu_status = gr.JSON(label="GPU Information", value={})
+    init_btn = gr.Button("Initialize GPU", variant="primary")
+    
+    init_btn.click(
+        fn=initialize_gpu,  # Call GPU function only on button click
+        outputs=gpu_status
+    )
+    
+    gr.Markdown(
+        "Click 'Initialize GPU' to test GPU availability. "
+        "This is optional - the app works on CPU if GPU is not available."
+    )
 
 
 @builder_registry(
@@ -516,7 +525,7 @@ def create_gradio_interface():
     about_html = textwrap.dedent(
         f"""
 <div style="padding: 20px;">
-    <h1>Arena Improver</h1>
+    <h1>Vawlrathh</h1>
     <p style="font-style: italic; color: #666;">
         "Your deck's terrible. Let me show you how to fix it."<br/>
         — <strong>Vawlrathh, The Small'n</strong>
@@ -531,7 +540,7 @@ def create_gradio_interface():
     </p>
 
     <p>
-        <strong>Arena Improver</strong> is an MCP-powered deck analysis tool
+        <strong>Vawlrathh</strong> is an MCP-powered deck analysis tool
         that actually works. It analyzes your janky brews, tells you what's
         wrong (plenty), and helps you build something that won't embarrass
         you at FNM.
@@ -564,7 +573,7 @@ def create_gradio_interface():
     <p style="margin-top: 30px; color: #666;">
         <strong>Repository:</strong>
         <a href="{REPO_URL}" target="_blank">
-            github.com/clduab11/arena-improver
+            github.com/clduab11/vawlrathh
         </a>
     </p>
  </div>
@@ -657,9 +666,9 @@ def create_gradio_interface():
 
     # Create the interface with tabs
     with gr.Blocks(
-        title="Arena Improver - Vawlrathh's Deck Analysis",
+        title="Vawlrathh - Deck Analysis",
     ) as interface:
-        gr.Markdown("# Arena Improver - Vawlrathh, The Small'n")
+        gr.Markdown("# Vawlrathh, The Small'n")
         gr.Markdown("*Your deck's terrible. Let me show you how to fix it.*")
 
         with gr.Tabs():
@@ -715,6 +724,9 @@ def create_gradio_interface():
                     """
                 )
                 gr.Markdown(troubleshooting_md)
+            
+            with gr.Tab("GPU Status"):
+                build_gpu_status_tab()
 
             with gr.Tab("Deck Uploads"):
                 build_deck_uploader_tab()
@@ -783,7 +795,7 @@ async def shutdown_event():
 def main():
     """Main entry point for the Hugging Face Space."""
     logger.info("=" * 60)
-    logger.info("Arena Improver - Hugging Face Space")
+    logger.info("Vawlrathh - Hugging Face Space")
     logger.info("=" * 60)
     logger.info("Starting combined FastAPI + Gradio server on port %s", FASTAPI_PORT)
     logger.info("=" * 60)
