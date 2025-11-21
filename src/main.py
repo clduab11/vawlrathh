@@ -2,8 +2,8 @@
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI, Response
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import psutil
@@ -41,7 +41,7 @@ app = FastAPI(
     title="Arena Improver",
     description="MCP for Magic: The Gathering Arena deck analysis and optimization",
     version=__version__,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -58,22 +58,47 @@ app.include_router(router, prefix="/api/v1", tags=["decks"])
 app.include_router(ws_router, prefix="/api/v1", tags=["chat"])
 
 
-@app.get("/")
+# Root endpoint redirects to Gradio UI for HuggingFace Spaces compatibility
+# The Gradio interface is mounted at /gradio for clean separation from FastAPI routes
+# API information available at:
+#   - /api - API service info
+#   - /docs - Interactive Swagger UI documentation
+#   - /redoc - ReDoc API documentation
+
+
+@app.get("/", include_in_schema=False)
 async def root():
-    """Root endpoint."""
+    """Redirect root path to Gradio UI.
+    
+    HuggingFace Spaces and users expect the root path to be accessible.
+    This redirects to the Gradio interface mounted at /gradio.
+    """
+    return RedirectResponse(url="/gradio")
+
+
+@app.get("/api")
+async def api_info():
+    """API information and available endpoints.
+
+    This endpoint provides information about the Arena Improver API service.
+    For full interactive documentation, visit /docs or /redoc.
+    The Gradio UI is available at /gradio.
+    """
     return {
         "service": "Arena Improver",
         "version": __version__,
         "description": "MCP for MTG Arena deck analysis",
+        "ui": "/gradio",
         "docs": "/docs",
+        "redoc": "/redoc",
         "mcp_server": "Use mcp_server.py for MCP protocol access",
         "chat": "WebSocket chat at /api/v1/ws/chat/{client_id}",
         "features": [
             "Deck analysis & optimization",
             "Physical card purchase links",
             "Real-time chat with Vawlrathh, The Small'n",
-            "AI consensus checking"
-        ]
+            "AI consensus checking",
+        ],
     }
 
 
@@ -86,7 +111,7 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "version": __version__
+        "version": __version__,
     }
 
 
@@ -103,31 +128,23 @@ async def readiness_check():
         return {
             "status": "ready",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "checks": {
-                "database": "connected"
-            }
+            "checks": {"database": "connected"},
         }
     except SQLAlchemyError as e:
         # Log the actual error for debugging
         logger.error(f"Database initialization failed: {e}", exc_info=True)
-        
+
         return JSONResponse(
-            content={
-                "status": "not_ready",
-                "error": "Database initialization failed"
-            },
-            status_code=503
+            content={"status": "not_ready", "error": "Database initialization failed"},
+            status_code=503,
         )
     except Exception as e:
         # Log unexpected errors for debugging
         logger.error(f"Unexpected readiness check failure: {e}", exc_info=True)
-        
+
         return JSONResponse(
-            content={
-                "status": "not_ready",
-                "error": "Service initialization failed"
-            },
-            status_code=503
+            content={"status": "not_ready", "error": "Service initialization failed"},
+            status_code=503,
         )
 
 
@@ -137,10 +154,7 @@ async def liveness_check():
 
     Returns 200 if process is alive (for restart decisions).
     """
-    return {
-        "status": "alive",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+    return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @app.get("/metrics")
@@ -175,7 +189,7 @@ async def metrics():
                 "hit_rate": round(meta_stats["hit_rate"], 3),
                 "hits": meta_stats["hits"],
                 "misses": meta_stats["misses"],
-                "utilization": round(meta_stats["utilization"], 3)
+                "utilization": round(meta_stats["utilization"], 3),
             },
             "deck": {
                 "size": deck_stats["size"],
@@ -183,9 +197,9 @@ async def metrics():
                 "hit_rate": round(deck_stats["hit_rate"], 3),
                 "hits": deck_stats["hits"],
                 "misses": deck_stats["misses"],
-                "utilization": round(deck_stats["utilization"], 3)
-            }
-        }
+                "utilization": round(deck_stats["utilization"], 3),
+            },
+        },
     }
 
 
@@ -199,7 +213,7 @@ async def status():
     env_status = {
         "OPENAI_API_KEY": "configured" if os.getenv("OPENAI_API_KEY") else "missing",
         "TAVILY_API_KEY": "configured" if os.getenv("TAVILY_API_KEY") else "missing",
-        "EXA_API_KEY": "configured" if os.getenv("EXA_API_KEY") else "missing"
+        "EXA_API_KEY": "configured" if os.getenv("EXA_API_KEY") else "missing",
     }
 
     # Get cache stats
@@ -216,26 +230,22 @@ async def status():
             "database": "connected",
             "cache": {
                 "meta": f"{meta_cache.stats()['size']}/{meta_cache.stats()['max_size']} entries",
-                "deck": f"{deck_cache.stats()['size']}/{deck_cache.stats()['max_size']} entries"
-            }
+                "deck": f"{deck_cache.stats()['size']}/{deck_cache.stats()['max_size']} entries",
+            },
         },
         "features": {
             "deck_analysis": True,
             "ai_optimization": env_status["OPENAI_API_KEY"] == "configured",
             "meta_intelligence": env_status["TAVILY_API_KEY"] == "configured",
-            "semantic_search": env_status["EXA_API_KEY"] == "configured"
-        }
+            "semantic_search": env_status["EXA_API_KEY"] == "configured",
+        },
     }
 
 
 if __name__ == "__main__":
     import os
+
     # Note: 0.0.0.0 binds to all interfaces for Docker/production use
     # Use 127.0.0.1 for local development to restrict access
     host = os.getenv("API_HOST", "127.0.0.1")
-    uvicorn.run(
-        "src.main:app",
-        host=host,
-        port=8000,
-        reload=True
-    )
+    uvicorn.run("src.main:app", host=host, port=8000, reload=True)

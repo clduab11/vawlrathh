@@ -1,8 +1,11 @@
 """Hugging Face Space wrapper for Arena Improver.
 
-This module provides a Gradio interface that wraps the FastAPI application
-for deployment on Hugging Face Spaces. The FastAPI server runs on port 7860
-(HF Space default), and Gradio provides a web interface on port 7861.
+This module provides a combined Gradio + FastAPI application for deployment
+on Hugging Face Spaces. Both services run on port 7860 (HF Space default)
+using Gradio's mount_gradio_app to consolidate the servers.
+
+The Gradio UI is mounted at /gradio subpath for clean separation from FastAPI routes.
+FastAPI endpoints are available at /api/v1/*, /docs, /health, etc.
 
 "Your deck's terrible. Let me show you how to fix it."
 — Vawlrathh, The Small'n
@@ -10,42 +13,63 @@ for deployment on Hugging Face Spaces. The FastAPI server runs on port 7860
 
 # pylint: disable=no-member
 
+import asyncio
 import json
+import logging
 import os
 import subprocess
 import sys
+import textwrap
 import time
 import uuid
-import logging
-import textwrap
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 import gradio as gr
+from gradio import mount_gradio_app
 import httpx
+import uvicorn
 import websockets
+
+from src.main import app as fastapi_app
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# HF Space configuration
-FASTAPI_PORT = 7860  # HF Spaces expect main app on 7860
-GRADIO_PORT = 7861   # Gradio interface on different port
-HEALTH_CHECK_URL = f"http://localhost:{FASTAPI_PORT}/health"
-DOCS_URL = f"/proxy/{FASTAPI_PORT}/docs"  # HF Space proxy pattern
+# Module-level shared HTTP client for async handlers with connection pooling
+client: Optional[httpx.AsyncClient] = None
+
+
+async def get_shared_client() -> httpx.AsyncClient:
+    """Get or create shared HTTP client with connection pooling.
+    
+    Returns:
+        httpx.AsyncClient: Shared client instance with connection pooling
+    """
+    global client
+    if not client:
+        client = httpx.AsyncClient(
+            timeout=60.0,
+            limits=httpx.Limits(max_keepalive_connections=10)
+        )
+    return client
+
+# HF Space configuration - single port for both FastAPI and Gradio
+FASTAPI_PORT = 7860  # HF Spaces only exposes port 7860
 REPO_URL = "https://github.com/clduab11/arena-improver"
 HACKATHON_URL = "https://huggingface.co/MCP-1st-Birthday"
-HF_DEPLOYMENT_GUIDE_URL = (
-    f"{REPO_URL}/blob/main/docs/HF_DEPLOYMENT.md"
-)
+HF_DEPLOYMENT_GUIDE_URL = f"{REPO_URL}/blob/main/docs/HF_DEPLOYMENT.md"
+# Both services run on the same port now - these URLs point to localhost
+# for internal communication between Gradio frontend and FastAPI backend
 API_BASE_URL = os.getenv(
     "FASTAPI_BASE_URL",
     f"http://localhost:{FASTAPI_PORT}",
-)
+)  # For REST API calls
 WS_BASE_URL = os.getenv(
     "FASTAPI_WS_URL",
     f"ws://localhost:{FASTAPI_PORT}",
-)
+)  # For WebSocket connections
+HEALTH_CHECK_URL = f"{API_BASE_URL}/health"
 
 
 @dataclass
@@ -84,8 +108,8 @@ def builder_registry(
     return decorator
 
 
-def _upload_csv_to_api(file_path: Optional[str]) -> Dict[str, Any]:
-    """Upload a CSV file to the FastAPI backend with defensive logging."""
+async def _upload_csv_to_api(file_path: Optional[str]) -> Dict[str, Any]:
+    """Upload a CSV file to the FastAPI backend with defensive logging (async)."""
 
     if not file_path:
         return {"status": "error", "message": "No CSV file selected"}
@@ -95,7 +119,8 @@ def _upload_csv_to_api(file_path: Optional[str]) -> Dict[str, Any]:
             files = {
                 "file": (os.path.basename(file_path), file_handle, "text/csv"),
             }
-            response = httpx.post(
+            shared_client = await get_shared_client()
+            response = await shared_client.post(
                 f"{API_BASE_URL}/api/v1/upload/csv",
                 files=files,
                 timeout=60,
@@ -109,25 +134,23 @@ def _upload_csv_to_api(file_path: Optional[str]) -> Dict[str, Any]:
         status_code = exc.response.status_code
         return {
             "status": "error",
-            "message": (
-                "Backend rejected CSV upload "
-                f"({status_code})"
-            ),
+            "message": (f"Backend rejected CSV upload ({status_code})"),
         }
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("Unexpected CSV upload failure")
         return {"status": "error", "message": str(exc)}
 
 
-def _upload_text_to_api(deck_text: str, fmt: str) -> Dict[str, Any]:
-    """Upload Arena text export to the FastAPI backend."""
+async def _upload_text_to_api(deck_text: str, fmt: str) -> Dict[str, Any]:
+    """Upload Arena text export to the FastAPI backend (async)."""
 
     if not deck_text or not deck_text.strip():
         return {"status": "error", "message": "Deck text is empty"}
 
     payload = {"deck_string": deck_text, "format": fmt}
     try:
-        response = httpx.post(
+        shared_client = await get_shared_client()
+        response = await shared_client.post(
             f"{API_BASE_URL}/api/v1/upload/text",
             json=payload,
             timeout=60,
@@ -139,21 +162,19 @@ def _upload_text_to_api(deck_text: str, fmt: str) -> Dict[str, Any]:
         status_code = exc.response.status_code
         return {
             "status": "error",
-            "message": (
-                "Backend rejected text upload "
-                f"({status_code})"
-            ),
+            "message": (f"Backend rejected text upload ({status_code})"),
         }
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("Unexpected text upload failure")
         return {"status": "error", "message": str(exc)}
 
 
-def _fetch_meta_snapshot(game_format: str) -> Dict[str, Any]:
-    """Fetch meta intelligence for a specific format."""
+async def _fetch_meta_snapshot(game_format: str) -> Dict[str, Any]:
+    """Fetch meta intelligence for a specific format (async)."""
 
     try:
-        response = httpx.get(
+        shared_client = await get_shared_client()
+        response = await shared_client.get(
             f"{API_BASE_URL}/api/v1/meta/{game_format}",
             timeout=60,
         )
@@ -170,14 +191,15 @@ def _fetch_meta_snapshot(game_format: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(exc)}
 
 
-def _fetch_memory_summary(deck_id: Optional[float]) -> Dict[str, Any]:
-    """Fetch Smart Memory stats for the supplied deck id."""
+async def _fetch_memory_summary(deck_id: Optional[float]) -> Dict[str, Any]:
+    """Fetch Smart Memory stats for the supplied deck id (async)."""
 
     if not deck_id:
         return {"status": "error", "message": "Deck ID required"}
 
     try:
-        response = httpx.get(
+        shared_client = await get_shared_client()
+        response = await shared_client.get(
             f"{API_BASE_URL}/api/v1/stats/{int(deck_id)}",
             timeout=60,
         )
@@ -225,9 +247,9 @@ def build_deck_uploader_tab():
         csv_input = gr.File(file_types=[".csv"], label="Arena CSV Export")
         upload_btn = gr.Button("Upload CSV", variant="primary")
 
-    def handle_csv_upload(uploaded_file, previous_id):
+    async def handle_csv_upload(uploaded_file, previous_id):
         file_path = getattr(uploaded_file, "name", None)
-        payload = _upload_csv_to_api(file_path)
+        payload = await _upload_csv_to_api(file_path)
         deck_id = payload.get("deck_id") or previous_id
         return payload, deck_id, deck_id
 
@@ -241,7 +263,7 @@ def build_deck_uploader_tab():
     deck_text_input = gr.Textbox(
         lines=10,
         label="Arena Export",  # guidance label
-        placeholder="4 Lightning Bolt (M11) 146\n2 Counterspell (MH2) 267",
+        placeholder="4 Lightning Bolt (M11) 146\\n2 Counterspell (MH2) 267",
     )
     format_dropdown = gr.Dropdown(
         choices=["Standard", "Pioneer", "Modern"],
@@ -250,8 +272,8 @@ def build_deck_uploader_tab():
     )
     text_upload_btn = gr.Button("Upload Text", variant="secondary")
 
-    def handle_text_upload(deck_text, fmt, previous_id):
-        payload = _upload_text_to_api(deck_text, fmt)
+    async def handle_text_upload(deck_text, fmt, previous_id):
+        payload = await _upload_text_to_api(deck_text, fmt)
         deck_id = payload.get("deck_id") or previous_id
         return payload, deck_id, deck_id
 
@@ -263,8 +285,8 @@ def build_deck_uploader_tab():
 
     gr.Markdown("### Tips")
     tips_markdown = (
-        "* CSV uploads should come from the Steam Arena export.\n"
-        "* Text uploads should be the Arena clipboard format.\n"
+        "* CSV uploads should come from the Steam Arena export.\\n"
+        "* Text uploads should be the Arena clipboard format.\\n"
         "* The latest `deck_id` works across the Meta dashboard and chat tabs."
     )
     gr.Markdown(tips_markdown)
@@ -304,14 +326,9 @@ def build_chat_ui_tab():
             return history, "", history
 
         context_note = (
-            f"Deck context: {int(deck_id)}"
-            if deck_id
-            else "No deck context provided"
+            f"Deck context: {int(deck_id)}" if deck_id else "No deck context provided"
         )
-        summary = (
-            "Message enqueued for WebSocket delivery."
-            f" {context_note}"
-        )
+        summary = f"Message enqueued for WebSocket delivery. {context_note}"
         # Chatbot expects (user, assistant) tuples
         history.append((message.strip(), summary))
         return history, "", history
@@ -365,90 +382,6 @@ def build_meta_dashboard_tab():
     )
 
 
-def kill_existing_uvicorn():
-    """Kill any existing uvicorn processes to avoid port conflicts."""
-    try:
-        # Find and kill existing uvicorn processes running on our port
-        # More specific pattern to avoid killing unrelated processes
-        result = subprocess.run(
-            ["pkill", "-9", "-f", f"uvicorn.*{FASTAPI_PORT}"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode == 0:
-            logger.info(
-                "Killed existing uvicorn processes on port %s",
-                FASTAPI_PORT,
-            )
-        time.sleep(1)  # Give processes time to clean up
-    except (OSError, subprocess.SubprocessError) as exc:
-        logger.warning("Error killing uvicorn processes: %s", exc)
-
-
-def start_fastapi_server():
-    """Start the FastAPI server in the background."""
-    kill_existing_uvicorn()
-    
-    logger.info("Starting FastAPI server on port %s...", FASTAPI_PORT)
-    
-    try:
-        # Start uvicorn as a subprocess
-        process = subprocess.Popen(
-            [
-                sys.executable, "-m", "uvicorn",
-                "src.main:app",
-                "--host", "0.0.0.0",
-                "--port", str(FASTAPI_PORT),
-                "--log-level", "info",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-
-        logger.info("FastAPI server started with PID %s", process.pid)
-        return process
-    except (OSError, subprocess.SubprocessError) as exc:
-        logger.error("Failed to start FastAPI server: %s", exc)
-        raise
-
-
-def wait_for_fastapi_ready(max_wait=60, check_interval=2):
-    """Wait for FastAPI server to be ready by checking health endpoint.
-    
-    Args:
-        max_wait: Maximum time to wait in seconds
-        check_interval: Time between health checks in seconds
-    
-    Returns:
-        bool: True if server is ready, False otherwise
-    """
-    logger.info("Waiting for FastAPI server to be ready...")
-    start_time = time.time()
-    
-    while time.time() - start_time < max_wait:
-        try:
-            response = httpx.get(HEALTH_CHECK_URL, timeout=5.0)
-            if response.status_code == 200:
-                logger.info("FastAPI server is ready!")
-                return True
-        except (httpx.ConnectError, httpx.TimeoutException):
-            logger.info(
-                "Server not ready yet, waiting %s seconds...",
-                check_interval,
-            )
-            time.sleep(check_interval)
-        except httpx.HTTPError as exc:
-            logger.warning("Health check error: %s", exc)
-            time.sleep(check_interval)
-    
-    logger.error(
-        "FastAPI server did not become ready within %s seconds",
-        max_wait,
-    )
-    return False
-
-
 def check_environment():
     """Check required environment variables and return HTML summary."""
     env_status = {}
@@ -467,40 +400,40 @@ def check_environment():
         "KAGI_API_KEY": "High precision search",
         "GITHUB_API_KEY": "Repository-scope search",
     }
-    
+
     has_missing_required = False
-    
+
     for key, description in required_keys.items():
         if os.getenv(key):
             env_status[key] = "✓ Configured"
         else:
             env_status[key] = f"✗ Missing - {description}"
             has_missing_required = True
-    
+
     for key, description in optional_keys.items():
         if os.getenv(key):
             env_status[key] = "✓ Configured"
         else:
             env_status[key] = f"⚠ Not configured - {description}"
-    
+
     status_html = "<h3>Environment Configuration</h3><ul>"
     for key, status in env_status.items():
         status_html += f"<li><strong>{key}:</strong> {status}</li>"
     status_html += "</ul>"
-    
+
     if has_missing_required:
         status_html += (
             "<p style='color: red;'><strong>⚠ Warning:</strong> "
             "Some required API keys are missing. Configure them in the HF Space settings."  # noqa: E501
             "</p>"
         )
-    
+
     return status_html
 
 
 def create_gradio_interface():
     """Create the Gradio interface with tabs."""
-    
+
     # About content with Vawlrath's personality
     about_html = textwrap.dedent(
         f"""
@@ -640,17 +573,17 @@ def create_gradio_interface():
 </div>
         """
     )
-    
+
     # Environment status
     env_status_html = check_environment()
-    
+
     # Create the interface with tabs
     with gr.Blocks(
         title="Arena Improver - Vawlrathh's Deck Analysis",
     ) as interface:
         gr.Markdown("# Arena Improver - Vawlrathh, The Small'n")
         gr.Markdown("*Your deck's terrible. Let me show you how to fix it.*")
-        
+
         with gr.Tabs():
             with gr.Tab("API Documentation"):
                 docs_markdown = textwrap.dedent(
@@ -660,14 +593,18 @@ def create_gradio_interface():
                     available API endpoints. Expand any route and select
                     "Try it out" to make test requests directly from the
                     browser.
+
+                    **Note:** API documentation is available at `/docs` on the
+                    same port as this interface.
                     """
                 )
                 gr.Markdown(docs_markdown)
 
+                # Use /docs directly since FastAPI and Gradio are on the same port
                 iframe_html = textwrap.dedent(
-                    f"""
+                    """
                     <iframe
-                        src="{DOCS_URL}"
+                        src="/docs"
                         width="100%"
                         height="800px"
                         style="border: 1px solid #ccc; border-radius: 4px;">
@@ -675,13 +612,13 @@ def create_gradio_interface():
                     """
                 )
                 gr.HTML(iframe_html)
-            
+
             with gr.Tab("About"):
                 gr.HTML(about_html)
-            
+
             with gr.Tab("Quick Start"):
                 gr.HTML(quick_start_html)
-            
+
             with gr.Tab("Status"):
                 gr.HTML(env_status_html)
                 troubleshooting_md = textwrap.dedent(
@@ -709,7 +646,7 @@ def create_gradio_interface():
 
             with gr.Tab("Meta Intelligence"):
                 build_meta_dashboard_tab()
-        
+
         footer_md = textwrap.dedent(
             f"""
             ---
@@ -726,8 +663,43 @@ def create_gradio_interface():
             """
         )
         gr.Markdown(footer_md)
-    
+
     return interface
+
+
+def create_combined_app():
+    """Create a combined FastAPI + Gradio application.
+
+    Returns:
+        FastAPI: The combined application with Gradio mounted at /gradio subpath.
+    """
+    # Create Gradio interface
+    logger.info("Creating Gradio interface...")
+    gradio_interface = create_gradio_interface()
+
+    # Mount Gradio onto FastAPI at /gradio subpath
+    # FastAPI routes remain at /api/v1/*, /docs, /health, etc.
+    # Gradio UI is accessible at /gradio for cleaner separation
+    combined_app = mount_gradio_app(fastapi_app, gradio_interface, path="/gradio")
+
+    logger.info("Gradio mounted on FastAPI at /gradio subpath")
+    return combined_app
+
+
+# Factory function to create the combined app for uvicorn or testing
+def get_app():
+    return create_combined_app()
+
+
+# Create the app at module level for ASGI servers (e.g., uvicorn)
+app = get_app()
+
+
+@fastapi_app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup resources on shutdown."""
+    if client:
+        await client.aclose()
 
 
 def main():
@@ -735,47 +707,16 @@ def main():
     logger.info("=" * 60)
     logger.info("Arena Improver - Hugging Face Space")
     logger.info("=" * 60)
-    
-    # Start FastAPI server
-    try:
-        fastapi_process = start_fastapi_server()
-    except (OSError, subprocess.SubprocessError) as exc:
-        logger.error("Failed to start FastAPI server: %s", exc)
-        sys.exit(1)
-    
-    # Wait for FastAPI to be ready
-    if not wait_for_fastapi_ready(max_wait=60):
-        logger.error("FastAPI server failed to start. Check logs above.")
-        fastapi_process.terminate()
-        try:
-            fastapi_process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            logger.warning(
-                "FastAPI process did not terminate gracefully; forcing kill",
-            )
-            fastapi_process.kill()
-            fastapi_process.wait()
-        sys.exit(1)
-    
-    # Create and launch Gradio interface
-    try:
-        logger.info("Creating Gradio interface...")
-        interface = create_gradio_interface()
-        
-        logger.info("Launching Gradio on port %s...", GRADIO_PORT)
-        logger.info("=" * 60)
-        
-        # Launch Gradio
-        interface.launch(
-            server_name="0.0.0.0",
-            server_port=GRADIO_PORT,
-            share=False,
-            show_error=True
-        )
-    except (OSError, RuntimeError) as exc:
-        logger.error("Failed to launch Gradio interface: %s", exc)
-        fastapi_process.kill()
-        sys.exit(1)
+    logger.info("Starting combined FastAPI + Gradio server on port %s", FASTAPI_PORT)
+    logger.info("=" * 60)
+
+    # Launch the combined app with uvicorn
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=FASTAPI_PORT,
+        log_level="info",
+    )
 
 
 if __name__ == "__main__":
