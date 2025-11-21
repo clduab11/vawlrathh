@@ -1,7 +1,7 @@
 """SmartMemory service for historical performance tracking."""
 
 from typing import List, Dict, DefaultDict
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
 from .smart_sql import SmartSQLService
@@ -55,7 +55,7 @@ class SmartMemoryService:
         """Analyze performance trends over time."""
         performances = await self.sql_service.get_deck_performance(deck_id)
         
-        cutoff_date = datetime.now(UTC) - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         
         # Filter to specified time period
         recent_performances = [
@@ -254,5 +254,5 @@ class SmartMemoryService:
         """Parse stored ISO timestamps and normalize timezone awareness."""
         parsed = datetime.fromisoformat(match_date)
         if parsed.tzinfo is None:
-            return parsed.replace(tzinfo=UTC)
+            return parsed.replace(tzinfo=timezone.utc)
         return parsed

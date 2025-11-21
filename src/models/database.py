@@ -21,7 +21,7 @@ class Base(DeclarativeBase):
 
 def utcnow() -> datetime:
     """Return timezone-aware UTC datetime for SQLAlchemy defaults."""
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class DeckModel(Base):
