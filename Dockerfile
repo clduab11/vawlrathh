@@ -14,20 +14,28 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Create a non-root user for HF Spaces
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
+
+# Copy application code with correct ownership
+COPY --chown=user . $HOME/app
+WORKDIR $HOME/app
 
 # Create data directory for SQLite
-RUN mkdir -p /app/data
+RUN mkdir -p $HOME/app/data
 
 # Set API host for Docker (binds to all interfaces)
 ENV API_HOST=0.0.0.0
 
-# Expose FastAPI port
-EXPOSE 8000
+# Expose FastAPI port (HF Spaces default is 7860)
+EXPOSE 7860
 
 # Expose MCP protocol port
 EXPOSE 8001
 
 # Run the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Launch app.py which contains the combined Gradio+FastAPI app
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

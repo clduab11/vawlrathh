@@ -2,7 +2,7 @@
 emoji: 🎴
 colorFrom: purple
 colorTo: indigo
-sdk: gradio
+sdk: docker
 app_file: app.py
 license: agpl-3.0
 pinned: false
@@ -394,8 +394,9 @@ Already set up in `mcp_config.json`. Don't touch it unless you know what you're 
 ## 📚 Documentation
 
 ### Quick Start & Overview (Root Directory)
+
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide for all environments
-- **[CLAUDE.md](CLAUDE.md)** - Claude AI integration and code review workflows  
+- **[CLAUDE.md](CLAUDE.md)** - Claude AI integration and code review workflows
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
 ### Technical Documentation (docs/ Directory)
@@ -419,6 +420,7 @@ Already set up in `mcp_config.json`. Don't touch it unless you know what you're 
 - **[HF Space API Docs](https://huggingface.co/spaces/MCP-1st-Birthday/vawlrath)** - Try the API live
 
 ### Documentation Hierarchy
+
 - **Root docs** (DEPLOYMENT.md, CLAUDE.md): High-level overviews and quick starts
 - **docs/ directory**: Detailed technical guides, architecture, and specific topics
 - **Cross-references**: Documents link to each other for easy navigation
@@ -481,7 +483,6 @@ Run `examples/hackathon_demo.py` to generate:
 - Event logs (`data/events/hackathon_demo_export.json`)
 - Performance statistics
 - Feature demonstrations
-
 
 ---
 
