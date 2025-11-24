@@ -790,9 +790,15 @@ def main():
     logger.info("Starting combined FastAPI + Gradio server on port %s", FASTAPI_PORT)
     logger.info("=" * 60)
 
+    # Rename for clarity
+    server_app = app
+
+    # Initialize GPU on startup
+    # initialize_gpu()  # Commented out to prevent potential signal issues
+
     # Launch the combined app with uvicorn
     uvicorn.run(
-        app,
+        server_app,
         host="0.0.0.0",
         port=FASTAPI_PORT,
         log_level="info",
