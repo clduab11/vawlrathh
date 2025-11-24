@@ -1,0 +1,32 @@
+import os
+from huggingface_hub import HfApi
+
+def deploy():
+    token = os.environ.get("HF_TOKEN")
+    if not token:
+        print("Error: HF_TOKEN not found in environment variables.")
+        return
+
+    api = HfApi(token=token)
+    repo_id = "MCP-1st-Birthday/vawlrathh"
+
+    print(f"Deploying to {repo_id}...")
+    try:
+        api.upload_folder(
+            folder_path=".",
+            repo_id=repo_id,
+            repo_type="space",
+            commit_message="HF Sync | Fix dependency conflict",
+            ignore_patterns=[
+                ".git/*", ".venv/*", "__pycache__/*",
+                ".pytest_cache/*", ".mypy_cache/*", ".ruff_cache/*",
+                "node_modules/*", "dist/*", "build/*", "data/*", "*.log"
+            ],
+            create_pr=True
+        )
+        print("Deployment successful! PR created.")
+    except Exception as e:
+        print(f"Deployment failed: {e}")
+
+if __name__ == "__main__":
+    deploy()

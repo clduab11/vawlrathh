@@ -12,7 +12,6 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 
 from .api.routes import router, sql_service
-from .services.http_client import HTTPClientManager
 from .api.websocket_routes import router as ws_router
 from .utils.cache import get_meta_cache, get_deck_cache
 from . import __version__
@@ -33,10 +32,9 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler for startup/shutdown."""
     # Startup
     await sql_service.init_db()
-    await HTTPClientManager.start()
     yield
     # Shutdown
-    await HTTPClientManager.stop()
+    # Clean up resources if needed
 
 
 app = FastAPI(

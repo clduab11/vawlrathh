@@ -9,8 +9,6 @@ FastAPI endpoints are available at /api/v1/*, /docs, /health, etc.
 
 "Your deck's terrible. Let me show you how to fix it."
 — Vawlrathh, The Small'n
-
-# Force sync
 """
 
 # pylint: disable=no-member
@@ -74,18 +72,6 @@ def initialize_gpu():
     return {"gpu": None, "cuda_available": False}
 
 
-@spaces.GPU(duration=0)
-def warmup_gpu():
-    """Zero-duration GPU call to satisfy ZeroGPU startup check."""
-    pass
-
-
-if HF_SPACE_ENVIRONMENT:
-    # Launch warmup in background to register with ZeroGPU without blocking
-    import threading
-    threading.Thread(target=warmup_gpu, daemon=True).start()
-
-
 # Try to import the main FastAPI app
 try:
     from src.main import app as fastapi_app
@@ -119,7 +105,23 @@ except Exception as e:
 
     logger.warning("Running in Recovery Mode due to import failure")
 
-from src.services.http_client import HTTPClientManager
+# Module-level shared HTTP client for async handlers with connection pooling
+client: Optional[httpx.AsyncClient] = None
+
+
+async def get_shared_client() -> httpx.AsyncClient:
+    """Get or create shared HTTP client with connection pooling.
+    
+    Returns:
+        httpx.AsyncClient: Shared client instance with connection pooling
+    """
+    global client
+    if not client:
+        client = httpx.AsyncClient(
+            timeout=60.0,
+            limits=httpx.Limits(max_keepalive_connections=10)
+        )
+    return client
 
 # HF Space configuration - single port for both FastAPI and Gradio
 FASTAPI_PORT = 7860  # HF Spaces only exposes port 7860
@@ -186,7 +188,7 @@ async def _upload_csv_to_api(file_path: Optional[str]) -> Dict[str, Any]:
             files = {
                 "file": (os.path.basename(file_path), file_handle, "text/csv"),
             }
-            shared_client = HTTPClientManager.get_client()
+            shared_client = await get_shared_client()
             response = await shared_client.post(
                 f"{API_BASE_URL}/api/v1/upload/csv",
                 files=files,
@@ -216,7 +218,7 @@ async def _upload_text_to_api(deck_text: str, fmt: str) -> Dict[str, Any]:
 
     payload = {"deck_string": deck_text, "format": fmt}
     try:
-        shared_client = HTTPClientManager.get_client()
+        shared_client = await get_shared_client()
         response = await shared_client.post(
             f"{API_BASE_URL}/api/v1/upload/text",
             json=payload,
@@ -240,7 +242,7 @@ async def _fetch_meta_snapshot(game_format: str) -> Dict[str, Any]:
     """Fetch meta intelligence for a specific format (async)."""
 
     try:
-        shared_client = HTTPClientManager.get_client()
+        shared_client = await get_shared_client()
         response = await shared_client.get(
             f"{API_BASE_URL}/api/v1/meta/{game_format}",
             timeout=60,
@@ -265,7 +267,7 @@ async def _fetch_memory_summary(deck_id: Optional[float]) -> Dict[str, Any]:
         return {"status": "error", "message": "Deck ID required"}
 
     try:
-        shared_client = HTTPClientManager.get_client()
+        shared_client = await get_shared_client()
         response = await shared_client.get(
             f"{API_BASE_URL}/api/v1/stats/{int(deck_id)}",
             timeout=60,
@@ -783,7 +785,11 @@ def get_app():
 app = get_app()
 
 
-
+@fastapi_app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup resources on shutdown."""
+    if client:
+        await client.aclose()
 
 
 def main():
@@ -795,8 +801,13 @@ def main():
     logger.info("=" * 60)
 
     # Launch the combined app with uvicorn
-    # Pass the app object directly to prevent double initialization
-    uvicorn.run(app, host="0.0.0.0", port=FASTAPI_PORT, log_level="info")
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=FASTAPI_PORT,
+        log_level="info",
+        loop="asyncio",
+    )
 
 
 if __name__ == "__main__":
