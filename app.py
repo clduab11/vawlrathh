@@ -782,28 +782,7 @@ async def shutdown_event():
         await client.aclose()
 
 
-def main():
-    """Main entry point for the Hugging Face Space."""
-    logger.info("=" * 60)
-    logger.info("Vawlrathh - Hugging Face Space")
-    logger.info("=" * 60)
-    logger.info("Starting combined FastAPI + Gradio server on port %s", FASTAPI_PORT)
-    logger.info("=" * 60)
-
-    # Rename for clarity
-    server_app = app
-
-    # Initialize GPU on startup
-    # initialize_gpu()  # Commented out to prevent potential signal issues
-
-    # Launch the combined app with uvicorn
-    uvicorn.run(
-        server_app,
-        host="0.0.0.0",
-        port=FASTAPI_PORT,
-        log_level="info",
-    )
-
-
-if __name__ == "__main__":
-    main()
+# Expose the app for the Spaces runner
+# The runner will import this 'app' object and serve it automatically.
+# Do NOT call uvicorn.run() here, as it conflicts with the Spaces infrastructure.
+```
