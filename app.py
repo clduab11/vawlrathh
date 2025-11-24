@@ -19,6 +19,7 @@ import os
 import sys
 import textwrap
 import uuid
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
@@ -747,6 +748,15 @@ def create_gradio_interface():
     return interface
 
 
+async def cleanup_http_client():
+    """Cleanup the shared HTTP client on shutdown."""
+    global client
+    if client:
+        await client.aclose()
+        client = None
+        logger.info("HTTP client closed successfully")
+
+
 def create_combined_app():
     """Create a combined FastAPI + Gradio application.
 
@@ -762,6 +772,10 @@ def create_combined_app():
     # Gradio UI is accessible at root path for HF Spaces compatibility
     combined_app = mount_gradio_app(fastapi_app, gradio_interface, path="/")
 
+    # Register shutdown handler using add_event_handler (non-deprecated method)
+    # This is the programmatic equivalent of @app.on_event("shutdown")
+    combined_app.router.on_shutdown.append(cleanup_http_client)
+
     logger.info("Gradio mounted on FastAPI at root path")
     return combined_app
 
@@ -773,13 +787,6 @@ def get_app():
 
 # Create the app at module level for ASGI servers (e.g., uvicorn)
 app = get_app()
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup resources on shutdown."""
-    if client:
-        await client.aclose()
 
 
 # Expose the app for the Spaces runner
