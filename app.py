@@ -775,7 +775,7 @@ def get_app():
 app = get_app()
 
 
-@fastapi_app.on_event("shutdown")
+@app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup resources on shutdown."""
     if client:
@@ -784,5 +784,4 @@ async def shutdown_event():
 
 # Expose the app for the Spaces runner
 # The runner will import this 'app' object and serve it automatically.
-# Do NOT call uvicorn.run() here, as it conflicts with the Spaces infrastructure.
-```
+

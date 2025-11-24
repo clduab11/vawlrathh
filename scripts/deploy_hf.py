@@ -1,7 +1,11 @@
 import os
 from huggingface_hub import HfApi
+from dotenv import load_dotenv
 
 def deploy():
+    # Load environment variables from .env file if present
+    load_dotenv()
+    
     token = os.environ.get("HF_TOKEN")
     if not token:
         print("Error: HF_TOKEN not found in environment variables.")
