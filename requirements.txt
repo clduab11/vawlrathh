@@ -38,4 +38,4 @@ psutil==6.1.0
 
 # Hugging Face Space Integration
 gradio>=5.0.0
-huggingface-hub<1.0
+huggingface-hub<2.0
