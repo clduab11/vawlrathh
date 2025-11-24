@@ -43,18 +43,8 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 # GPU / Spaces Configuration
 # -----------------------------------------------------------------------------
-try:
-    import spaces
-    HF_SPACE_ENVIRONMENT = True
-except ImportError:
-    # Create a dummy decorator for local development
-    class spaces:
-        @staticmethod
-        def GPU(duration=60):
-            def decorator(func):
-                return func
-            return decorator
-    HF_SPACE_ENVIRONMENT = False
+import spaces
+HF_SPACE_ENVIRONMENT = True
 
 
 @spaces.GPU(duration=10)
