@@ -775,7 +775,7 @@ def get_app():
 app = get_app()
 
 
-@fastapi_app.on_event("shutdown")
+@app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup resources on shutdown."""
     if client:
