@@ -60,7 +60,7 @@ except ImportError:
 @spaces.GPU(duration=10)
 def initialize_gpu():
     """Initialize GPU runtime for HF Spaces ZERO.
-    
+
     This function exists primarily to satisfy the ZeroGPU requirement that
     at least one function must be decorated with @spaces.GPU.
     """
@@ -79,17 +79,17 @@ try:
 except Exception as e:
     logger.error(f"Failed to import FastAPI app: {e}")
     logger.error(traceback.format_exc())
-    
+
     # Capture error details for the closure
     error_msg = str(e)
     error_traceback = traceback.format_exc()
-    
+
     # Create a minimal FastAPI app as fallback
     from fastapi import FastAPI
     from fastapi.responses import JSONResponse
-    
+
     fastapi_app = FastAPI(title="Vawlrathh - Recovery Mode")
-    
+
     @fastapi_app.get("/")
     def read_root():
         return {
@@ -98,7 +98,7 @@ except Exception as e:
             "error": error_msg,
             "details": error_traceback.splitlines()
         }
-        
+
     @fastapi_app.get("/health")
     def health_check():
         return {"status": "recovery_mode", "error": error_msg}
@@ -111,7 +111,7 @@ client: Optional[httpx.AsyncClient] = None
 
 async def get_shared_client() -> httpx.AsyncClient:
     """Get or create shared HTTP client with connection pooling.
-    
+
     Returns:
         httpx.AsyncClient: Shared client instance with connection pooling
     """
@@ -302,15 +302,15 @@ async def _check_chat_websocket() -> Dict[str, Any]:
 def build_gpu_status_tab():
     """GPU status and initialization tab."""
     gr.Markdown("## GPU Status")
-    
+
     gpu_status = gr.JSON(label="GPU Information", value={})
     init_btn = gr.Button("Initialize GPU", variant="primary")
-    
+
     init_btn.click(
         fn=initialize_gpu,  # Call GPU function only on button click
         outputs=gpu_status
     )
-    
+
     gr.Markdown(
         "Click 'Initialize GPU' to test GPU availability. "
         "This is optional - the app works on CPU if GPU is not available."
@@ -724,7 +724,7 @@ def create_gradio_interface():
                     """
                 )
                 gr.Markdown(troubleshooting_md)
-            
+
             with gr.Tab("GPU Status"):
                 build_gpu_status_tab()
 
@@ -802,11 +802,10 @@ def main():
 
     # Launch the combined app with uvicorn
     uvicorn.run(
-        "app:app",
+        app,
         host="0.0.0.0",
         port=FASTAPI_PORT,
         log_level="info",
-        loop="asyncio",
     )
 
 
