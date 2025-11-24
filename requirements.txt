@@ -9,7 +9,7 @@ websockets==13.1
 mcp==1.22.0
 
 # Data processing
-pandas==2.2.3
+pandas==2.3.3
 numpy==2.2.1
 
 # Database
