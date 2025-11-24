@@ -2,7 +2,7 @@
 emoji: 🎴
 colorFrom: purple
 colorTo: indigo
-sdk: docker
+sdk: gradio
 app_file: app.py
 license: agpl-3.0
 pinned: false
