@@ -35,7 +35,7 @@ mypy==1.13.0                     # Static type checker
 pylint==3.3.9                    # Traditional comprehensive linter
 bandit==1.7.10                   # Security linter
 safety==3.7.0                    # Dependency vulnerability scanner
-pip-audit==2.7.3                 # Audit pip packages for vulnerabilities
+pip-audit==2.9.0                 # Audit pip packages for vulnerabilities
 
 # ----------------------------------------------------------------------------
 # Code Formatting
