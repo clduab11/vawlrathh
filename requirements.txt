@@ -34,7 +34,7 @@ pytest-asyncio==1.2.0
 
 # Utilities
 python-dotenv==1.0.1
-psutil==6.1.0
+psutil<6.0.0
 
 # Hugging Face Space Integration
 gradio>=5.0.0
