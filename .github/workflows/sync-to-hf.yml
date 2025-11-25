@@ -1,0 +1,68 @@
+name: Sync Hugging Face Space
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  upload-to-hf:
+    runs-on: ubuntu-latest
+    env:
+      HF_SPACE_ID: MCP-1st-Birthday/vawlrathh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install --upgrade huggingface_hub
+
+      - name: Upload to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+          from huggingface_hub import HfApi
+
+          token = os.environ.get("HF_TOKEN")
+          repo_id = os.environ.get("HF_SPACE_ID")
+
+          if not token:
+              sys.exit("HF_TOKEN secret is missing. Set it in the repository secrets before running this workflow.")
+
+          if not repo_id:
+              sys.exit("HF_SPACE_ID is missing. Define it in the workflow env block.")
+
+          api = HfApi()
+          commit_message = f"Sync from GitHub {os.environ.get('GITHUB_SHA', '')[:7]}"
+
+          try:
+              api.upload_folder(
+                  folder_path=".",
+                  repo_id=repo_id,
+                  repo_type="space",
+                  token=token,
+                  commit_message=commit_message,
+                  ignore_patterns=[
+                      ".git/*",
+                      ".github/workflows/*",
+                      "*.pyc",
+                      "__pycache__/*",
+                      ".pytest_cache/*",
+                      ".mypy_cache/*",
+                      ".venv/*",
+                      "hf-space/*",
+                  ],
+              )
+          except Exception as err:
+              sys.exit(f"Upload failed: {err}")
+          else:
+              print("Upload completed successfully.")
+          PY
