@@ -465,7 +465,164 @@ def create_gradio_interface():
 
     env_status_html = check_environment()
 
-    with gr.Blocks(title="Vawlrathh - Deck Analysis") as interface:
+    # Custom CSS for premium dark theme with purple/blue gradients
+    custom_css = """
+    /* Global dark theme with gradient background */
+    .gradio-container {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Header styling */
+    .gradio-container h1 {
+        background: linear-gradient(90deg, #a855f7 0%, #3b82f6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 800;
+        text-align: center;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Subtitle styling */
+    .gradio-container h1 + .markdown {
+        text-align: center;
+        color: #94a3b8;
+        font-style: italic;
+        margin-bottom: 2rem;
+    }
+
+    /* Tab styling */
+    .tab-nav {
+        background: rgba(30, 30, 46, 0.6) !important;
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 0.5rem;
+        border: 1px solid rgba(168, 85, 247, 0.2);
+    }
+
+    button.selected {
+        background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%) !important;
+        color: white !important;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    /* Card/Panel styling with glassmorphism */
+    .gr-box, .gr-form, .gr-panel {
+        background: rgba(30, 30, 46, 0.4) !important;
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(168, 85, 247, 0.15) !important;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Input fields */
+    input, textarea, select {
+        background: rgba(15, 52, 96, 0.3) !important;
+        border: 1px solid rgba(59, 130, 246, 0.3) !important;
+        border-radius: 8px;
+        color: #e2e8f0 !important;
+        transition: all 0.3s ease;
+    }
+
+    input:focus, textarea:focus, select:focus {
+        border-color: #a855f7 !important;
+        box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1) !important;
+    }
+
+    /* Primary buttons */
+    .gr-button-primary {
+        background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%) !important;
+        border: none !important;
+        color: white !important;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+    }
+
+    .gr-button-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+    }
+
+    /* Secondary buttons */
+    .gr-button-secondary {
+        background: rgba(59, 130, 246, 0.2) !important;
+        border: 1px solid rgba(59, 130, 246, 0.4) !important;
+        color: #60a5fa !important;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .gr-button-secondary:hover {
+        background: rgba(59, 130, 246, 0.3) !important;
+        border-color: #3b82f6 !important;
+    }
+
+    /* Chatbot styling */
+    .message-row {
+        margin: 1rem 0;
+    }
+
+    .message.user {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        border-radius: 18px 18px 4px 18px;
+        padding: 1rem 1.5rem;
+        color: white;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .message.bot {
+        background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%) !important;
+        border-radius: 18px 18px 18px 4px;
+        padding: 1rem 1.5rem;
+        color: white;
+        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+    }
+
+    /* JSON output styling */
+    .json-holder {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(100, 116, 139, 0.2) !important;
+        border-radius: 12px;
+        padding: 1rem;
+        font-family: 'Fira Code', 'Courier New', monospace;
+        color: #94a3b8;
+    }
+
+    /* Links */
+    a {
+        color: #60a5fa !important;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    a:hover {
+        color: #a855f7 !important;
+    }
+
+    /* Labels */
+    label {
+        color: #cbd5e1 !important;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Footer */
+    footer {
+        background: rgba(15, 23, 42, 0.4);
+        border-top: 1px solid rgba(168, 85, 247, 0.1);
+        padding: 1rem;
+        margin-top: 2rem;
+    }
+    """
+
+    with gr.Blocks(title="Vawlrathh - Deck Analysis", css=custom_css) as interface:
         gr.Markdown("# Vawlrathh, The Small'n")
         gr.Markdown("*Your deck's terrible. Let me show you how to fix it.*")
 
