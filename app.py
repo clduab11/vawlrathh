@@ -192,7 +192,8 @@ async def handle_memory_summary(deck_id: float):
 
 async def chat_streaming(message, history, deck_id):
     """Stream chat responses using ConcurrentChatService."""
-    if not message:
+    if not message or not message.strip():
+        yield history or [], ""
         return
 
     history = history or []
@@ -219,14 +220,16 @@ async def chat_streaming(message, history, deck_id):
         response_text = result["response"]
 
         if result.get("consensus_checked") and not result.get("consensus_passed"):
-             response_text += f"\n\n⚠️ **Consensus Warning**: {result.get('consensus_breaker', {}).get('reason')}"
+            response_text += f"\n\n⚠️ **Consensus Warning**: {result.get('consensus_breaker', {}).get('reason')}"
 
-        history.append((message, response_text))
+        history.append({"role": "user", "content": message})
+        history.append({"role": "assistant", "content": response_text})
         yield history, ""
 
     except Exception as e:
         logger.exception("Chat failed")
-        history.append((message, f"Error: {str(e)}"))
+        history.append({"role": "user", "content": message})
+        history.append({"role": "assistant", "content": f"Error: {str(e)}"})
         yield history, ""
 
 # -----------------------------------------------------------------------------
@@ -275,10 +278,10 @@ def build_deck_uploader_tab():
     deck_text_input = gr.Textbox(
         lines=10,
         label="Arena Export",
-        placeholder="4 Lightning Bolt (M11) 146\\n2 Counterspell (MH2) 267",
+        placeholder="4 Lightning Bolt (M11) 146\n2 Counterspell (MH2) 267",
     )
     format_dropdown = gr.Dropdown(
-        choices=["Standard", "Pioneer", "Modern"],
+        choices=["Standard", "Pioneer", "Modern", "Alchemy", "Historic", "Explorer", "Timeless", "Brawl", "Historic Brawl", "Limited (Draft)", "Limited (Sealed)"],
         value="Standard",
         label="Format",
     )
@@ -292,8 +295,8 @@ def build_deck_uploader_tab():
 
     gr.Markdown("### Tips")
     gr.Markdown(
-        "* CSV uploads should come from the Steam Arena export.\\n"
-        "* Text uploads should be the Arena clipboard format.\\n"
+        "* CSV uploads should come from the Steam Arena export.\n"
+        "* Text uploads should be the Arena clipboard format.\n"
         "* The latest `deck_id` works across the Meta dashboard and chat tabs."
     )
 
@@ -325,20 +328,45 @@ def build_analysis_tab():
 def build_chat_ui_tab():
     """Chat interface using Gradio Chatbot."""
     gr.Markdown("## Chat with Vawlrathh")
+    gr.Markdown("Ask me about your deck, mulligan decisions, sideboard strategies, or meta matchups.")
 
-    chatbot = gr.Chatbot(label="Live Conversation", height=400)
-    msg = gr.Textbox(label="Message", placeholder="Ask Vawlrathh how to fix your deck...")
-    deck_context = gr.Number(label="Deck ID (optional)", precision=0)
-    clear = gr.Button("Clear")
+    chatbot = gr.Chatbot(
+        label="Live Conversation",
+        height=400,
+        type="messages",
+        show_copy_button=True,
+    )
+    with gr.Row():
+        msg = gr.Textbox(
+            label="Message",
+            placeholder="Ask Vawlrathh how to fix your deck...",
+            scale=4,
+            container=False,
+        )
+        submit_btn = gr.Button("Send", variant="primary", scale=1)
 
-    msg.submit(chat_streaming, [msg, chatbot, deck_context], [chatbot, msg])
-    clear.click(lambda: None, None, chatbot, queue=False)
+    with gr.Row():
+        deck_context = gr.Number(label="Deck ID (optional)", precision=0, scale=2)
+        clear = gr.Button("Clear Chat", variant="secondary", scale=1)
+
+    # Wire up submit events
+    msg.submit(
+        fn=chat_streaming,
+        inputs=[msg, chatbot, deck_context],
+        outputs=[chatbot, msg],
+    )
+    submit_btn.click(
+        fn=chat_streaming,
+        inputs=[msg, chatbot, deck_context],
+        outputs=[chatbot, msg],
+    )
+    clear.click(fn=lambda: ([], ""), inputs=None, outputs=[chatbot, msg], queue=False)
 
 def build_meta_dashboard_tab():
     """Meta dashboards tab."""
     gr.Markdown("## Meta Dashboards")
     format_dropdown = gr.Dropdown(
-        choices=["Standard", "Pioneer", "Modern"],
+        choices=["Standard", "Pioneer", "Modern", "Alchemy", "Historic", "Explorer", "Timeless", "Brawl", "Historic Brawl", "Limited (Draft)", "Limited (Sealed)"],
         value="Standard",
         label="Format",
     )
@@ -441,6 +469,42 @@ def create_gradio_interface():
         decisions into steps you can follow</li>
         <li><strong>Full MCP Integration:</strong> Memory, sequential thinking,
         omnisearch—the works</li>
+    </ul>
+
+    <h2>📖 How to Use</h2>
+    
+    <h3>Uploading Decks</h3>
+    <ol>
+        <li><strong>Export from Arena:</strong> In MTG Arena, go to your deck and click "Export" to copy to clipboard</li>
+        <li><strong>Paste in Deck Uploads tab:</strong> Go to the "Deck Uploads" tab and paste your deck list in the text area</li>
+        <li><strong>Or upload CSV:</strong> If you have a CSV export from Steam Arena, upload it directly</li>
+        <li><strong>Select format:</strong> Choose your format (Standard, Pioneer, Modern, etc.) and click "Upload"</li>
+        <li><strong>Note the Deck ID:</strong> After upload, you'll receive a Deck ID to use in other tabs</li>
+    </ol>
+
+    <h3>Using Chat</h3>
+    <ol>
+        <li><strong>Go to Chat tab:</strong> Navigate to the "Chat" tab</li>
+        <li><strong>Enter Deck ID (optional):</strong> If you want deck-specific advice, enter your Deck ID</li>
+        <li><strong>Ask anything:</strong> Ask for deck analysis, mulligan advice, sideboard strategies, or meta matchup tips</li>
+        <li><strong>Example questions:</strong>
+            <ul>
+                <li>"What are my deck's weaknesses?"</li>
+                <li>"Should I mulligan a hand with 2 lands and 5 spells?"</li>
+                <li>"How do I sideboard against control?"</li>
+                <li>"What cards should I cut to improve consistency?"</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h3>Navigating Tabs</h3>
+    <ul>
+        <li><strong>Deck Uploads:</strong> Upload your deck via CSV or text paste</li>
+        <li><strong>Analysis:</strong> Get detailed deck analysis including mana curve, strengths, weaknesses, and synergies. Enter your Deck ID and click "Analyze Deck" for full breakdown, or "Get Suggestions" for optimization recommendations</li>
+        <li><strong>Chat:</strong> Have a conversation with Vawlrathh about strategy, mulligan decisions, and deck improvements</li>
+        <li><strong>Meta Intelligence:</strong> View current meta snapshots for your format and track deck performance history</li>
+        <li><strong>Status:</strong> Check API key configuration status</li>
+        <li><strong>GPU Status:</strong> Test GPU availability (optional - app works on CPU)</li>
     </ul>
 
     <h3>🎖️ MCP 1st Birthday Hackathon</h3>
