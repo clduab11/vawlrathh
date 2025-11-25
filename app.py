@@ -90,12 +90,12 @@ async def handle_csv_upload(uploaded_file, previous_id):
         content = uploaded_file.read()
         if isinstance(content, bytes):
             content = content.decode('utf-8')
-            
+
         deck = parse_arena_csv(content)
         deck_id = await sql_service.store_deck(deck)
-        
+
         return {
-            "status": "success", 
+            "status": "success",
             "message": f"Deck '{deck.name}' uploaded successfully",
             "deck_id": deck_id
         }, deck_id, deck_id
@@ -115,9 +115,9 @@ async def handle_text_upload(deck_text, fmt, previous_id):
         deck = parse_deck_string(deck_text)
         deck.format = fmt
         deck_id = await sql_service.store_deck(deck)
-        
+
         return {
-            "status": "success", 
+            "status": "success",
             "message": f"Deck uploaded successfully",
             "deck_id": deck_id
         }, deck_id, deck_id
@@ -129,14 +129,14 @@ async def handle_analyze(deck_id: float):
     """Analyze a deck using DeckAnalyzer."""
     if not deck_id:
         return {"status": "error", "message": "No deck ID provided"}
-    
+
     try:
         deck = await sql_service.get_deck(int(deck_id))
         if not deck:
             return {"status": "error", "message": "Deck not found"}
-            
+
         analysis = await deck_analyzer.analyze_deck(deck)
-        
+
         # Convert to dict for JSON output
         return {
             "deck_name": analysis.deck_name,
@@ -155,15 +155,15 @@ async def handle_optimize(deck_id: float):
     """Generate optimization suggestions."""
     if not deck_id:
         return {"status": "error", "message": "No deck ID provided"}
-        
+
     try:
         deck = await sql_service.get_deck(int(deck_id))
         if not deck:
             return {"status": "error", "message": "Deck not found"}
-            
+
         analysis = await deck_analyzer.analyze_deck(deck)
         suggestions = await inference_service.generate_suggestions(deck, analysis)
-        
+
         return [s.__dict__ for s in suggestions]
     except Exception as e:
         logger.exception("Optimization failed")
@@ -182,7 +182,7 @@ async def handle_memory_summary(deck_id: float):
     """Fetch deck performance history."""
     if not deck_id:
         return {"status": "error", "message": "No deck ID provided"}
-        
+
     try:
         history = await sql_service.get_deck_performance(int(deck_id))
         return history
@@ -194,9 +194,9 @@ async def chat_streaming(message, history, deck_id):
     """Stream chat responses using ConcurrentChatService."""
     if not message:
         return
-        
+
     history = history or []
-    
+
     # Prepare context
     context = {}
     if deck_id:
@@ -210,20 +210,20 @@ async def chat_streaming(message, history, deck_id):
                 }
         except Exception as e:
             logger.error(f"Failed to load deck context: {e}")
-    
+
     # Call chat service
     # Note: ConcurrentChatService isn't a generator yet, so we await the full response
     # In a future update, we could make it stream
     try:
         result = await chat_service.chat(message, context)
         response_text = result["response"]
-        
+
         if result.get("consensus_checked") and not result.get("consensus_passed"):
              response_text += f"\n\n⚠️ **Consensus Warning**: {result.get('consensus_breaker', {}).get('reason')}"
-             
+
         history.append((message, response_text))
         yield history, ""
-        
+
     except Exception as e:
         logger.exception("Chat failed")
         history.append((message, f"Error: {str(e)}"))
@@ -300,22 +300,22 @@ def build_deck_uploader_tab():
 def build_analysis_tab():
     """Deck analysis and optimization tab."""
     gr.Markdown("## Deck Analysis & Optimization")
-    
+
     deck_id_input = gr.Number(label="Deck ID", precision=0)
-    
+
     with gr.Row():
         analyze_btn = gr.Button("Analyze Deck", variant="primary")
         optimize_btn = gr.Button("Get Suggestions", variant="secondary")
-        
+
     analysis_json = gr.JSON(label="Analysis Results")
     suggestions_json = gr.JSON(label="Optimization Suggestions")
-    
+
     analyze_btn.click(
         fn=handle_analyze,
         inputs=deck_id_input,
         outputs=analysis_json
     )
-    
+
     optimize_btn.click(
         fn=handle_optimize,
         inputs=deck_id_input,
@@ -325,7 +325,7 @@ def build_analysis_tab():
 def build_chat_ui_tab():
     """Chat interface using Gradio Chatbot."""
     gr.Markdown("## Chat with Vawlrathh")
-    
+
     chatbot = gr.Chatbot(label="Live Conversation", height=400)
     msg = gr.Textbox(label="Message", placeholder="Ask Vawlrathh how to fix your deck...")
     deck_context = gr.Number(label="Deck ID (optional)", precision=0)
@@ -344,7 +344,7 @@ def build_meta_dashboard_tab():
     )
     meta_btn = gr.Button("Load Meta Snapshot", variant="primary")
     meta_json = gr.JSON(label="Meta Intelligence", value={})
-    
+
     meta_btn.click(
         fn=handle_meta_snapshot,
         inputs=format_dropdown,
@@ -354,7 +354,7 @@ def build_meta_dashboard_tab():
     deck_input = gr.Number(label="Deck ID", precision=0)
     memory_btn = gr.Button("Load Smart Memory", variant="secondary")
     memory_json = gr.JSON(label="Memory Summary", value={})
-    
+
     memory_btn.click(
         fn=handle_memory_summary,
         inputs=deck_input,
@@ -475,7 +475,7 @@ def create_gradio_interface():
 
             with gr.Tab("Deck Uploads"):
                 build_deck_uploader_tab()
-                
+
             with gr.Tab("Analysis"):
                 build_analysis_tab()
 
@@ -484,10 +484,10 @@ def create_gradio_interface():
 
             with gr.Tab("Meta Intelligence"):
                 build_meta_dashboard_tab()
-                
+
             with gr.Tab("Status"):
                 gr.HTML(env_status_html)
-                
+
             with gr.Tab("GPU Status"):
                 build_gpu_status_tab()
 
