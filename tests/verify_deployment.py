@@ -8,8 +8,9 @@ def verify_deployment():
     print("Starting verification...")
     
     # Start the app in a subprocess
+    # Note: We use uvicorn directly as app.py exposes the 'app' object but doesn't run it
     process = subprocess.Popen(
-        [sys.executable, "app.py"],
+        [sys.executable, "-m", "uvicorn", "app:app", "--port", "7860", "--host", "0.0.0.0"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -33,9 +34,9 @@ def verify_deployment():
             print(f"❌ Health check exception: {e}")
             return False
             
-        # Check Gradio
+        # Check Gradio (mounted at root)
         try:
-            response = requests.get("http://localhost:7860/gradio", timeout=5)
+            response = requests.get("http://localhost:7860/", timeout=5)
             if response.status_code in [200, 307, 308]:
                 print("✅ Gradio mount passed")
             else:
