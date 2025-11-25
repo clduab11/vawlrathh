@@ -525,167 +525,724 @@ def create_gradio_interface():
 
     env_status_html = check_environment()
 
-    # Custom CSS for premium dark theme with purple/blue gradients
+    # ==========================================================================
+    # VAWLRATHH THEME SYSTEM v2.0
+    # Comprehensive CSS with Safari/WebKit compatibility and light/dark themes
+    # ==========================================================================
+    
     custom_css = """
-    /* Global dark theme with gradient background */
-    .gradio-container {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
+/* ==========================================================================
+   VAWLRATHH THEME SYSTEM v2.0
+   
+   TABLE OF CONTENTS:
+   1. CSS Custom Properties (Variables)
+      1.1 Base Tokens (Theme-Independent)
+      1.2 Dark Theme (Default)
+      1.3 Light Theme
+   2. Reset & Base Styles
+   3. Typography (with Safari-safe gradients)
+   4. Components
+      4.1 Buttons
+      4.2 Inputs
+      4.3 Cards/Panels (with backdrop-filter fallbacks)
+      4.4 Tabs
+      4.5 Chat Interface
+      4.6 JSON Display
+   5. Gradio Overrides
+   6. Media Queries
+      6.1 Theme Switching (System Preference)
+      6.2 Responsive Design
+      6.3 Accessibility (Reduced Motion, High Contrast)
+   ========================================================================== */
 
-    /* Header styling */
-    .gradio-container h1 {
-        background: linear-gradient(90deg, #a855f7 0%, #3b82f6 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: 800;
-        text-align: center;
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
+/* --------------------------------------------------------------------------
+   1. CSS CUSTOM PROPERTIES
+   -------------------------------------------------------------------------- */
 
-    /* Subtitle styling */
-    .gradio-container h1 + .markdown {
-        text-align: center;
-        color: #94a3b8;
-        font-style: italic;
-        margin-bottom: 2rem;
-    }
+/* 1.1 Base Tokens (Theme-Independent) */
+:root {
+  /* Brand Colors */
+  --color-brand-purple: #a855f7;
+  --color-brand-purple-light: #c084fc;
+  --color-brand-purple-dark: #9333ea;
+  --color-brand-blue: #3b82f6;
+  --color-brand-blue-light: #60a5fa;
+  --color-brand-blue-dark: #2563eb;
+  
+  /* Gradients */
+  --gradient-brand: linear-gradient(135deg, var(--color-brand-purple) 0%, var(--color-brand-blue) 100%);
+  --gradient-brand-subtle: linear-gradient(135deg, var(--color-brand-purple-dark) 0%, var(--color-brand-blue-dark) 100%);
+  
+  /* Spacing System */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+  
+  /* Typography */
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'Fira Code', 'SF Mono', 'Consolas', monospace;
+  
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+  --font-size-4xl: 2.5rem;
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+  
+  /* Z-Index Scale */
+  --z-dropdown: 100;
+  --z-modal: 200;
+  --z-tooltip: 300;
+  --z-toast: 400;
+}
 
-    /* Tab styling */
-    .tab-nav {
-        background: rgba(30, 30, 46, 0.6) !important;
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        padding: 0.5rem;
-        border: 1px solid rgba(168, 85, 247, 0.2);
-    }
+/* 1.2 Dark Theme (Default) */
+:root,
+[data-theme="dark"] {
+  /* Background Colors */
+  --color-bg-primary: #0f0f1a;
+  --color-bg-secondary: #1a1a2e;
+  --color-bg-tertiary: #252542;
+  
+  /* Surface Colors */
+  --color-surface-default: rgba(30, 30, 46, 0.95);
+  --color-surface-hover: rgba(37, 37, 66, 0.95);
+  --color-surface-active: rgba(45, 45, 80, 0.95);
+  
+  /* Text Colors - WCAG AAA Compliant */
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-tertiary: #94a3b8;
+  --color-text-inverse: #0f0f1a;
+  
+  /* Border Colors */
+  --color-border-default: rgba(148, 163, 184, 0.2);
+  --color-border-subtle: rgba(148, 163, 184, 0.1);
+  --color-border-strong: rgba(148, 163, 184, 0.4);
+  --color-border-accent: rgba(168, 85, 247, 0.4);
+  --color-border-focus: var(--color-brand-purple);
+  
+  /* Accent Colors */
+  --color-accent-primary: var(--color-brand-purple);
+  --color-accent-primary-hover: var(--color-brand-purple-light);
+  --color-accent-primary-active: var(--color-brand-purple-dark);
+  --color-accent-secondary: var(--color-brand-blue);
+  --color-accent-secondary-hover: var(--color-brand-blue-light);
+  --color-accent-secondary-active: var(--color-brand-blue-dark);
+  
+  /* Input Colors - Improved Contrast */
+  --color-input-bg: rgba(37, 37, 66, 0.8);
+  --color-input-bg-hover: rgba(45, 45, 80, 0.8);
+  --color-input-bg-focus: rgba(45, 45, 80, 0.95);
+  --color-input-border: rgba(148, 163, 184, 0.3);
+  --color-input-border-hover: rgba(148, 163, 184, 0.5);
+  --color-input-border-focus: var(--color-brand-purple);
+  --color-input-text: #f1f5f9;
+  --color-input-placeholder: #64748b;
+  
+  /* Semantic Colors */
+  --color-success: #22c55e;
+  --color-success-bg: rgba(34, 197, 94, 0.15);
+  --color-success-border: rgba(34, 197, 94, 0.4);
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-warning-border: rgba(245, 158, 11, 0.4);
+  --color-error: #ef4444;
+  --color-error-bg: rgba(239, 68, 68, 0.15);
+  --color-error-border: rgba(239, 68, 68, 0.4);
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.15);
+  --color-info-border: rgba(59, 130, 246, 0.4);
+  
+  /* Shadows */
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 2px var(--shadow-color);
+  --shadow-md: 0 4px 12px var(--shadow-color);
+  --shadow-lg: 0 8px 24px var(--shadow-color);
+  --shadow-xl: 0 12px 48px var(--shadow-color);
+  --shadow-glow-purple: 0 0 20px rgba(168, 85, 247, 0.3);
+  --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.3);
+}
 
-    button.selected {
-        background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%) !important;
-        color: white !important;
-        border-radius: 8px;
-        font-weight: 600;
-    }
+/* 1.3 Light Theme (Designed from Scratch - NOT inverted dark) */
+[data-theme="light"] {
+  /* Background Colors - Cool gray palette */
+  --color-bg-primary: #fafbfc;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f1f5f9;
+  
+  /* Surface Colors */
+  --color-surface-default: rgba(255, 255, 255, 0.95);
+  --color-surface-hover: rgba(241, 245, 249, 0.95);
+  --color-surface-active: rgba(226, 232, 240, 0.95);
+  
+  /* Text Colors - WCAG AAA Compliant */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-tertiary: #64748b;
+  --color-text-inverse: #ffffff;
+  
+  /* Border Colors */
+  --color-border-default: rgba(15, 23, 42, 0.12);
+  --color-border-subtle: rgba(15, 23, 42, 0.06);
+  --color-border-strong: rgba(15, 23, 42, 0.2);
+  --color-border-accent: rgba(168, 85, 247, 0.3);
+  --color-border-focus: var(--color-brand-purple);
+  
+  /* Accent Colors - Darker for light bg contrast */
+  --color-accent-primary: #9333ea;
+  --color-accent-primary-hover: #a855f7;
+  --color-accent-primary-active: #7e22ce;
+  --color-accent-secondary: #2563eb;
+  --color-accent-secondary-hover: #3b82f6;
+  --color-accent-secondary-active: #1d4ed8;
+  
+  /* Input Colors */
+  --color-input-bg: #ffffff;
+  --color-input-bg-hover: #f8fafc;
+  --color-input-bg-focus: #ffffff;
+  --color-input-border: rgba(15, 23, 42, 0.2);
+  --color-input-border-hover: rgba(15, 23, 42, 0.3);
+  --color-input-border-focus: var(--color-brand-purple);
+  --color-input-text: #0f172a;
+  --color-input-placeholder: #94a3b8;
+  
+  /* Semantic Colors - Adjusted for light bg */
+  --color-success: #16a34a;
+  --color-success-bg: rgba(22, 163, 74, 0.1);
+  --color-success-border: rgba(22, 163, 74, 0.3);
+  --color-warning: #d97706;
+  --color-warning-bg: rgba(217, 119, 6, 0.1);
+  --color-warning-border: rgba(217, 119, 6, 0.3);
+  --color-error: #dc2626;
+  --color-error-bg: rgba(220, 38, 38, 0.1);
+  --color-error-border: rgba(220, 38, 38, 0.3);
+  --color-info: #2563eb;
+  --color-info-bg: rgba(37, 99, 235, 0.1);
+  --color-info-border: rgba(37, 99, 235, 0.3);
+  
+  /* Shadows - Lighter for light theme */
+  --shadow-color: rgba(15, 23, 42, 0.08);
+  --shadow-sm: 0 1px 2px var(--shadow-color);
+  --shadow-md: 0 4px 12px var(--shadow-color);
+  --shadow-lg: 0 8px 24px var(--shadow-color);
+  --shadow-xl: 0 12px 48px var(--shadow-color);
+  --shadow-glow-purple: 0 0 20px rgba(147, 51, 234, 0.2);
+  --shadow-glow-blue: 0 0 20px rgba(37, 99, 235, 0.2);
+}
 
-    /* Card/Panel styling with glassmorphism */
-    .gr-box, .gr-form, .gr-panel {
-        background: rgba(30, 30, 46, 0.4) !important;
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(168, 85, 247, 0.15) !important;
-        border-radius: 16px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
+/* --------------------------------------------------------------------------
+   2. RESET & BASE STYLES
+   -------------------------------------------------------------------------- */
 
-    /* Input fields */
-    input, textarea, select {
-        background: rgba(15, 52, 96, 0.3) !important;
-        border: 1px solid rgba(59, 130, 246, 0.3) !important;
-        border-radius: 8px;
-        color: #e2e8f0 !important;
-        transition: all 0.3s ease;
-    }
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 
-    input:focus, textarea:focus, select:focus {
-        border-color: #a855f7 !important;
-        box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1) !important;
-    }
+/* --------------------------------------------------------------------------
+   3. TYPOGRAPHY (with Safari-safe gradients)
+   -------------------------------------------------------------------------- */
 
-    /* Primary buttons */
-    .gr-button-primary {
-        background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%) !important;
-        border: none !important;
-        color: white !important;
-        font-weight: 600;
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
-    }
+.gradio-container {
+  /* Fallback for older browsers */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-family-sans);
+  /* Fallback color */
+  color: #f1f5f9;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  line-height: var(--line-height-normal);
+}
 
-    .gr-button-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
-    }
+/* Header H1 - Safari-safe gradient text with solid fallback */
+.gradio-container h1 {
+  /* CRITICAL: Solid color fallback - ALWAYS visible on Safari/M1 */
+  color: #a855f7;
+  color: var(--color-brand-purple);
+  font-weight: 800;
+  font-weight: var(--font-weight-extrabold);
+  text-align: center;
+  font-size: 2.5rem;
+  font-size: var(--font-size-4xl);
+  margin-bottom: var(--spacing-sm);
+  /* M1 GPU optimization - force compositing layer */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
 
-    /* Secondary buttons */
-    .gr-button-secondary {
-        background: rgba(59, 130, 246, 0.2) !important;
-        border: 1px solid rgba(59, 130, 246, 0.4) !important;
-        color: #60a5fa !important;
-        font-weight: 600;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
+/* Progressive enhancement: Only apply gradient if fully supported */
+@supports (-webkit-background-clip: text) and (-webkit-text-fill-color: transparent) {
+  .gradio-container h1 {
+    background: linear-gradient(90deg, #a855f7 0%, #3b82f6 100%);
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
 
-    .gr-button-secondary:hover {
-        background: rgba(59, 130, 246, 0.3) !important;
-        border-color: #3b82f6 !important;
-    }
+/* Subtitle styling */
+.gradio-container h1 + .markdown {
+  text-align: center;
+  color: #94a3b8;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  margin-bottom: var(--spacing-xl);
+}
 
-    /* Chatbot styling */
-    .message-row {
-        margin: 1rem 0;
-    }
+/* --------------------------------------------------------------------------
+   4. COMPONENTS
+   -------------------------------------------------------------------------- */
 
-    .message.user {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-        border-radius: 18px 18px 4px 18px;
-        padding: 1rem 1.5rem;
-        color: white;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    }
+/* 4.1 Buttons - Primary */
+.gr-button-primary {
+  /* Fallback background */
+  background: #a855f7;
+  background: var(--gradient-brand);
+  border: none;
+  /* Fallback color */
+  color: #0f0f1a;
+  color: var(--color-text-inverse);
+  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
+  border-radius: 8px;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: var(--shadow-md), var(--shadow-glow-purple);
+  /* M1 GPU optimization */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
 
-    .message.bot {
-        background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%) !important;
-        border-radius: 18px 18px 18px 4px;
-        padding: 1rem 1.5rem;
-        color: white;
-        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
-    }
+.gr-button-primary:hover {
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-purple);
+}
 
-    /* JSON output styling */
-    .json-holder {
-        background: rgba(15, 23, 42, 0.6) !important;
-        border: 1px solid rgba(100, 116, 139, 0.2) !important;
-        border-radius: 12px;
-        padding: 1rem;
-        font-family: 'Fira Code', 'Courier New', monospace;
-        color: #94a3b8;
-    }
+/* 4.1 Buttons - Secondary */
+.gr-button-secondary {
+  background: rgba(59, 130, 246, 0.2);
+  background: var(--color-info-bg);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border: 1px solid var(--color-info-border);
+  color: #60a5fa;
+  color: var(--color-accent-secondary-hover);
+  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
+  border-radius: 8px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
 
-    /* Links */
-    a {
-        color: #60a5fa !important;
-        text-decoration: none;
-        transition: color 0.3s ease;
-    }
+.gr-button-secondary:hover {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: var(--color-accent-secondary);
+}
 
-    a:hover {
-        color: #a855f7 !important;
-    }
+/* 4.2 Inputs */
+input, textarea, select {
+  /* Fallback background */
+  background: rgba(37, 37, 66, 0.8);
+  background: var(--color-input-bg);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border: 1px solid var(--color-input-border);
+  border-radius: 8px;
+  border-radius: var(--radius-md);
+  color: #f1f5f9;
+  color: var(--color-input-text);
+  padding: var(--spacing-sm) var(--spacing-md);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  -webkit-appearance: none;
+  appearance: none;
+}
 
-    /* Labels */
-    label {
-        color: #cbd5e1 !important;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
+input:hover, textarea:hover, select:hover {
+  background: var(--color-input-bg-hover);
+  border-color: var(--color-input-border-hover);
+}
 
-    /* Footer */
-    footer {
-        background: rgba(15, 23, 42, 0.4);
-        border-top: 1px solid rgba(168, 85, 247, 0.1);
-        padding: 1rem;
-        margin-top: 2rem;
-    }
-    """
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  background: var(--color-input-bg-focus);
+  border-color: var(--color-input-border-focus);
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+}
 
-    # Inject custom CSS via gr.HTML for maximum compatibility across Gradio versions
+input::placeholder, textarea::placeholder {
+  color: #64748b;
+  color: var(--color-input-placeholder);
+}
+
+/* Focus-visible for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--color-brand-purple);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* 4.3 Cards/Panels - Safe Glassmorphism with 3-tier fallback */
+
+/* Tier 1: Solid background fallback - works everywhere */
+.gr-box, .gr-form, .gr-panel {
+  /* Solid fallback - guaranteed to work */
+  background: rgba(30, 30, 46, 0.95);
+  background: var(--color-surface-default);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  border: 1px solid var(--color-border-accent);
+  border-radius: 16px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Tier 2: Blur supported - lighter bg with blur effect */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .gr-box, .gr-form, .gr-panel {
+    background: rgba(30, 30, 46, 0.8);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+
+/* Light theme panels */
+[data-theme="light"] .gr-box,
+[data-theme="light"] .gr-form,
+[data-theme="light"] .gr-panel {
+  background: var(--color-surface-default);
+  border-color: var(--color-border-default);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  [data-theme="light"] .gr-box,
+  [data-theme="light"] .gr-form,
+  [data-theme="light"] .gr-panel {
+    background: rgba(255, 255, 255, 0.8);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+
+/* 4.4 Tabs */
+.tab-nav {
+  /* Solid fallback */
+  background: rgba(30, 30, 46, 0.95);
+  background: var(--color-surface-default);
+  border-radius: 12px;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border-accent);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .tab-nav {
+    background: rgba(30, 30, 46, 0.6);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+}
+
+button.selected {
+  background: var(--gradient-brand);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 4.5 Chat Interface */
+.message-row {
+  margin: var(--spacing-md) 0;
+}
+
+.message.user {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, var(--color-brand-blue) 0%, var(--color-brand-blue-dark) 100%);
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+  padding: var(--spacing-md) var(--spacing-lg);
+  color: white;
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-md);
+  /* Light theme text override */
+  --color-text-inverse: #ffffff;
+}
+
+.message.bot {
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+  background: linear-gradient(135deg, var(--color-brand-purple) 0%, var(--color-brand-purple-dark) 100%);
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  color: white;
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-md);
+  /* Light theme text override */
+  --color-text-inverse: #ffffff;
+}
+
+/* 4.6 JSON Display */
+.json-holder {
+  background: #252542;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   5. GRADIO OVERRIDES (Minimal !important - only where Gradio requires)
+   -------------------------------------------------------------------------- */
+
+/* Main container background - Gradio sets inline styles requiring !important */
+.gradio-container {
+  /* Fallback */
+  background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #252542 100%);
+  background: linear-gradient(135deg,
+    var(--color-bg-primary) 0%,
+    var(--color-bg-secondary) 50%,
+    var(--color-bg-tertiary) 100%
+  ) !important;
+}
+
+/* Light theme container */
+[data-theme="light"] .gradio-container,
+.gradio-container[data-theme="light"] {
+  background: linear-gradient(135deg,
+    var(--color-bg-primary) 0%,
+    var(--color-bg-secondary) 50%,
+    var(--color-bg-tertiary) 100%
+  ) !important;
+}
+
+/* Labels - Gradio sets inline color styles */
+label {
+  color: #cbd5e1;
+  color: var(--color-text-secondary) !important;
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Links - Gradio default link styles need override */
+a {
+  color: #60a5fa;
+  color: var(--color-accent-secondary-hover);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-accent-primary);
+}
+
+/* Footer */
+footer {
+  background: rgba(15, 23, 42, 0.4);
+  border-top: 1px solid var(--color-border-subtle);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+}
+
+/* --------------------------------------------------------------------------
+   6. MEDIA QUERIES
+   -------------------------------------------------------------------------- */
+
+/* 6.1 Theme Switching - System Preference */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    /* Light theme variable overrides for system preference */
+    --color-bg-primary: #fafbfc;
+    --color-bg-secondary: #ffffff;
+    --color-bg-tertiary: #f1f5f9;
+    --color-surface-default: rgba(255, 255, 255, 0.95);
+    --color-surface-hover: rgba(241, 245, 249, 0.95);
+    --color-surface-active: rgba(226, 232, 240, 0.95);
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #334155;
+    --color-text-tertiary: #64748b;
+    --color-text-inverse: #ffffff;
+    --color-border-default: rgba(15, 23, 42, 0.12);
+    --color-border-subtle: rgba(15, 23, 42, 0.06);
+    --color-border-strong: rgba(15, 23, 42, 0.2);
+    --color-input-bg: #ffffff;
+    --color-input-bg-hover: #f8fafc;
+    --color-input-bg-focus: #ffffff;
+    --color-input-border: rgba(15, 23, 42, 0.2);
+    --color-input-border-hover: rgba(15, 23, 42, 0.3);
+    --color-input-text: #0f172a;
+    --color-input-placeholder: #94a3b8;
+    --shadow-color: rgba(15, 23, 42, 0.08);
+  }
+}
+
+/* 6.2 Responsive Design */
+@media (max-width: 768px) {
+  .gradio-container h1 {
+    font-size: var(--font-size-2xl);
+  }
+  
+  .gr-box, .gr-form, .gr-panel {
+    border-radius: var(--radius-md);
+  }
+}
+
+/* 6.3 Accessibility */
+
+/* Reduced Motion - Disable animations */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .gr-button-primary:hover {
+    transform: none;
+  }
+  
+  /* Disable backdrop-filter for reduced motion */
+  .gr-box, .gr-form, .gr-panel, .tab-nav {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--color-surface-default);
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: more) {
+  :root {
+    --color-border-default: rgba(148, 163, 184, 0.5);
+    --color-border-strong: rgba(148, 163, 184, 0.8);
+    --color-input-border: rgba(148, 163, 184, 0.6);
+  }
+}
+
+/* Windows High Contrast Mode */
+@media (forced-colors: active) {
+  .gr-button-primary {
+    border: 2px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+  
+  .gr-button-primary:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+  
+  input, textarea, select {
+    border: 2px solid ButtonText;
+  }
+  
+  input:focus, textarea:focus, select:focus {
+    outline: 3px solid Highlight;
+  }
+}
+"""
+
+    # Theme Controller JavaScript for persistence
+    theme_js = """
+<script>
+/**
+ * ThemeController for Vawlrathh
+ * Manages theme switching with system preference respect and localStorage persistence
+ */
+const ThemeController = {
+  STORAGE_KEY: 'vawlrathh-theme',
+  
+  init() {
+    // Load saved preference or use system default
+    const saved = localStorage.getItem(this.STORAGE_KEY);
+    if (saved && (saved === 'dark' || saved === 'light')) {
+      this.applyTheme(saved);
+    }
+    // If no saved preference, CSS handles system preference via media query
+    
+    // Listen for system preference changes
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        // Only respond to system changes if no manual override
+        if (!localStorage.getItem(this.STORAGE_KEY)) {
+          this.applyTheme(e.matches ? 'dark' : 'light');
+        }
+      });
+    }
+  },
+  
+  applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    // Dispatch event for any listeners
+    window.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
+  },
+  
+  toggle() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const effectiveCurrent = current || (systemPrefersDark ? 'dark' : 'light');
+    const next = effectiveCurrent === 'dark' ? 'light' : 'dark';
+    
+    this.applyTheme(next);
+    localStorage.setItem(this.STORAGE_KEY, next);
+  },
+  
+  setTheme(theme) {
+    if (theme === 'system') {
+      localStorage.removeItem(this.STORAGE_KEY);
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      this.applyTheme(theme);
+      localStorage.setItem(this.STORAGE_KEY, theme);
+    }
+  }
+};
+
+// Initialize on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => ThemeController.init());
+} else {
+  ThemeController.init();
+}
+
+// Expose globally for Gradio button integration
+window.themeController = ThemeController;
+</script>
+"""
+
+    # Inject custom CSS and Theme Controller via gr.HTML for maximum compatibility
     with gr.Blocks(title="Vawlrathh - Deck Analysis") as interface:
         # CSS injection must be first element to apply styles to all subsequent components
         gr.HTML(f"<style>{custom_css}</style>")
+        # Theme controller JavaScript for persistence
+        gr.HTML(theme_js)
         gr.Markdown("# Vawlrathh, The Small'n")
         gr.Markdown("*Your deck's terrible. Let me show you how to fix it.*")
 
