@@ -222,14 +222,12 @@ async def chat_streaming(message, history, deck_id):
         if result.get("consensus_checked") and not result.get("consensus_passed"):
             response_text += f"\n\n⚠️ **Consensus Warning**: {result.get('consensus_breaker', {}).get('reason')}"
 
-        history.append({"role": "user", "content": message})
-        history.append({"role": "assistant", "content": response_text})
+        history.append((message, response_text))
         yield history, ""
 
     except Exception as e:
         logger.exception("Chat failed")
-        history.append({"role": "user", "content": message})
-        history.append({"role": "assistant", "content": f"Error: {str(e)}"})
+        history.append((message, f"Error: {str(e)}"))
         yield history, ""
 
 # -----------------------------------------------------------------------------
@@ -333,7 +331,6 @@ def build_chat_ui_tab():
     chatbot = gr.Chatbot(
         label="Live Conversation",
         height=400,
-        type="messages",
         show_copy_button=True,
     )
     with gr.Row():
