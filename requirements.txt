@@ -1,9 +1,5 @@
-# Core dependencies
-fastapi==0.115.5
-uvicorn==0.32.1
-pydantic>=2.11.0
-python-multipart==0.0.19
-websockets==13.1
+# Core dependencies (removed FastAPI - using Pure Gradio MVP)
+
 
 # MCP Protocol
 mcp==1.22.0
