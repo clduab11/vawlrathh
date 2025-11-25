@@ -331,7 +331,6 @@ def build_chat_ui_tab():
     chatbot = gr.Chatbot(
         label="Live Conversation",
         height=400,
-        show_copy_button=True,
     )
     with gr.Row():
         msg = gr.Textbox(
