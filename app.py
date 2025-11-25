@@ -622,7 +622,8 @@ def create_gradio_interface():
     }
     """
 
-    with gr.Blocks(title="Vawlrathh - Deck Analysis", css=custom_css) as interface:
+    # Gradio 5.x: Use 'head' parameter to inject custom CSS instead of 'css'
+    with gr.Blocks(title="Vawlrathh - Deck Analysis", head=f"<style>{custom_css}</style>") as interface:
         gr.Markdown("# Vawlrathh, The Small'n")
         gr.Markdown("*Your deck's terrible. Let me show you how to fix it.*")
 
