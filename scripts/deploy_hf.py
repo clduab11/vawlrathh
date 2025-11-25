@@ -26,9 +26,9 @@ def deploy():
                 ".pytest_cache/*", ".mypy_cache/*", ".ruff_cache/*",
                 "node_modules/*", "dist/*", "build/*", "data/*", "*.log"
             ],
-            create_pr=False
+            create_pr=True
         )
-        print("Deployment successful! Changes pushed to main.")
+        print("Deployment successful! PR created.")
     except Exception as e:
         print(f"Deployment failed: {e}")
 
