@@ -9,7 +9,7 @@ pandas==2.2.3
 numpy==2.2.1
 
 # Database
-sqlalchemy==2.0.36
+sqlalchemy==2.0.44
 aiosqlite==0.21.0
 
 # Async file I/O
