@@ -622,8 +622,10 @@ def create_gradio_interface():
     }
     """
 
-    # Gradio 5.x: Use 'head' parameter to inject custom CSS instead of 'css'
-    with gr.Blocks(title="Vawlrathh - Deck Analysis", head=f"<style>{custom_css}</style>") as interface:
+    # Inject custom CSS via gr.HTML for maximum compatibility across Gradio versions
+    with gr.Blocks(title="Vawlrathh - Deck Analysis") as interface:
+        # CSS injection must be first element to apply styles to all subsequent components
+        gr.HTML(f"<style>{custom_css}</style>")
         gr.Markdown("# Vawlrathh, The Small'n")
         gr.Markdown("*Your deck's terrible. Let me show you how to fix it.*")
 
