@@ -224,6 +224,7 @@ async def parse_multiverse_id_csv(
         if multiverse_id and pd.notna(multiverse_id):
             try:
                 # Safely convert multiverse_id to int
+                # Convert via float to handle pandas nullable int types that may be stored as float64
                 mid_int = int(float(multiverse_id))
                 card_data = await scryfall_service.get_card_by_multiverse_id(mid_int)
                 if card_data:
