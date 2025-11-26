@@ -1,6 +1,8 @@
 """Deck and card data models."""
 
+from datetime import datetime
 from typing import List, Dict, Optional
+from dataclasses import dataclass, field
 from pydantic import BaseModel, Field
 
 
@@ -88,3 +90,36 @@ class OptimizedDeck(BaseModel):
     suggestions: List[DeckSuggestion]
     predicted_win_rate: float
     confidence: float
+
+
+@dataclass
+class Collection:
+    """Represents a card collection (not a deck)."""
+    
+    id: Optional[int] = None
+    name: str = "Imported Collection"
+    cards: List[Card] = field(default_factory=list)
+    total_cards: int = 0
+    unique_cards: int = 0
+    created_at: Optional[datetime] = None
+    
+    def __post_init__(self):
+        if not self.total_cards:
+            self.total_cards = sum(card.quantity for card in self.cards)
+        if not self.unique_cards:
+            self.unique_cards = len(self.cards)
+
+
+@dataclass
+class CollectionProcessingResult:
+    """Result of processing a collection CSV."""
+    
+    collection_id: Optional[int] = None
+    total_cards: int = 0
+    unique_cards: int = 0
+    total_quantity: int = 0
+    chunks_processed: int = 0
+    chunks_failed: int = 0
+    failed_rows: List[int] = field(default_factory=list)
+    processing_time_seconds: float = 0.0
+    status: str = "pending"  # 'complete', 'partial', 'failed'

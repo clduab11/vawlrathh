@@ -64,7 +64,9 @@ class DeckAnalyzer:
                 cmc = int(card.cmc)
                 # Cap at 7+ for curve analysis
                 cmc_key = min(cmc, 7)
-                distribution[cmc_key] = distribution.get(cmc_key, 0) + card.quantity
+                # Use string keys for JSON serialization compatibility (orjson requirement)
+                str_key = str(cmc_key)
+                distribution[str_key] = distribution.get(str_key, 0) + card.quantity
                 cmc_values.extend([card.cmc] * card.quantity)
         
         avg_cmc = statistics.mean(cmc_values) if cmc_values else 0.0
@@ -80,8 +82,12 @@ class DeckAnalyzer:
             curve_score=curve_score
         )
     
-    def _score_mana_curve(self, distribution: Dict[int, int]) -> float:
-        """Score the mana curve (0-100)."""
+    def _score_mana_curve(self, distribution: Dict[str, int]) -> float:
+        """Score the mana curve (0-100).
+        
+        Args:
+            distribution: Dict with string keys (CMC values as strings)
+        """
         # Ideal distribution weights
         ideal = {0: 0, 1: 8, 2: 12, 3: 10, 4: 6, 5: 3, 6: 2, 7: 1}
         total_nonland = sum(distribution.values())
@@ -91,7 +97,8 @@ class DeckAnalyzer:
         
         score = 100.0
         for cmc, ideal_count in ideal.items():
-            actual_count = distribution.get(cmc, 0)
+            # Distribution uses string keys for JSON compatibility
+            actual_count = distribution.get(str(cmc), 0)
             actual_pct = (actual_count / total_nonland) * 100
             ideal_pct = (ideal_count / sum(ideal.values())) * 100
             

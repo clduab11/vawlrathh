@@ -9,9 +9,11 @@ using a separate FastAPI backend, ensuring compatibility with the Gradio SDK run
 """
 
 import logging
+import math
 import os
 import sys
 import textwrap
+import time
 import json
 import asyncio
 from dataclasses import dataclass
@@ -200,6 +202,140 @@ async def handle_memory_summary(deck_id: float):
         logger.exception("Memory summary failed")
         return {"status": "error", "message": str(e)}
 
+async def handle_collection_upload(
+    uploaded_file,
+    previous_id,
+    progress=gr.Progress(track_tqdm=True)
+):
+    """
+    Handle large collection CSV upload with chunked processing and progress tracking.
+    
+    Args:
+        uploaded_file: File path from gr.File component
+        previous_id: Previous collection ID from state
+        progress: Gradio progress tracker
+        
+    Returns:
+        Tuple of (status_dict, collection_id, collection_id)
+    """
+    from src.utils.csv_parser import count_csv_rows, parse_arena_csv_chunked
+    from src.models.deck import Collection, CollectionProcessingResult, Card
+    
+    start_time = time.time()
+    
+    # Validate input
+    if uploaded_file is None:
+        return {
+            "status": "error",
+            "message": "No file uploaded. Please select a CSV file."
+        }, previous_id, previous_id
+    
+    # Get file path (Gradio 4.x+ returns path string)
+    filepath = uploaded_file if isinstance(uploaded_file, str) else uploaded_file.name
+    
+    try:
+        # Phase 1: Count rows for progress calculation
+        progress(0, desc="Analyzing file size...")
+        total_rows = count_csv_rows(filepath)
+        
+        if total_rows == 0:
+            return {
+                "status": "error",
+                "message": "CSV file is empty or has no data rows."
+            }, previous_id, previous_id
+        
+        if total_rows > 100000:
+            return {
+                "status": "error",
+                "message": f"File has {total_rows:,} rows. Maximum supported is 100,000 rows."
+            }, previous_id, previous_id
+        
+        # Calculate chunks
+        chunk_size = 5000
+        total_chunks = math.ceil(total_rows / chunk_size)
+        
+        # Phase 2: Process chunks
+        all_cards: list = []
+        all_failed_rows: list = []
+        chunks_processed = 0
+        chunks_failed = 0
+        
+        for chunk_idx, cards, failed_rows in parse_arena_csv_chunked(filepath, chunk_size):
+            # Update progress
+            progress_pct = (chunk_idx + 1) / total_chunks
+            processed_rows = min((chunk_idx + 1) * chunk_size, total_rows)
+            progress(
+                progress_pct,
+                desc=f"Processing chunk {chunk_idx + 1}/{total_chunks} ({processed_rows:,}/{total_rows:,} rows)"
+            )
+            
+            # Accumulate results
+            all_cards.extend(cards)
+            all_failed_rows.extend(failed_rows)
+            chunks_processed += 1
+            
+            if len(failed_rows) > chunk_size * 0.5:  # >50% failure rate
+                chunks_failed += 1
+        
+        # Phase 3: Finalize
+        progress(1.0, desc="Finalizing collection...")
+        
+        elapsed_time = time.time() - start_time
+        
+        # Create collection
+        collection = Collection(
+            name=f"Imported Collection ({total_rows:,} cards)",
+            cards=all_cards,
+        )
+        
+        # Generate collection ID (simple incrementing for now)
+        collection_id = (previous_id or 0) + 1
+        
+        # Build result
+        result = CollectionProcessingResult(
+            collection_id=collection_id,
+            total_cards=collection.total_cards,
+            unique_cards=collection.unique_cards,
+            total_quantity=sum(card.quantity for card in all_cards),
+            chunks_processed=chunks_processed,
+            chunks_failed=chunks_failed,
+            failed_rows=all_failed_rows[:100],  # Limit to first 100 failures
+            processing_time_seconds=round(elapsed_time, 2),
+            status="complete" if chunks_failed == 0 else "partial"
+        )
+        
+        # Format response
+        status = "success" if result.status == "complete" else "warning"
+        response = {
+            "status": status,
+            "message": f"Collection processed successfully in {elapsed_time:.1f}s",
+            "collection_id": collection_id,
+            "statistics": {
+                "total_rows": total_rows,
+                "cards_imported": result.total_cards,
+                "unique_cards": result.unique_cards,
+                "total_quantity": result.total_quantity,
+                "chunks_processed": chunks_processed,
+                "chunks_failed": chunks_failed,
+                "failed_rows_count": len(all_failed_rows),
+                "processing_time": f"{elapsed_time:.2f}s"
+            }
+        }
+        
+        if all_failed_rows:
+            response["failed_rows_sample"] = all_failed_rows[:20]
+            response["message"] += f" ({len(all_failed_rows)} rows failed to parse)"
+        
+        return response, collection_id, collection_id
+        
+    except Exception as e:
+        logger.exception(f"Collection upload error: {e}")
+        return {
+            "status": "error",
+            "message": f"Failed to process collection: {str(e)}",
+            "error_type": type(e).__name__
+        }, previous_id, previous_id
+
 async def chat_streaming(message, history, deck_id):
     """Stream chat responses using ConcurrentChatService."""
     if not message or not message.strip():
@@ -232,14 +368,14 @@ async def chat_streaming(message, history, deck_id):
         if result.get("consensus_checked") and not result.get("consensus_passed"):
             response_text += f"\n\n⚠️ **Consensus Warning**: {result.get('consensus_breaker', {}).get('reason')}"
 
-        # Gradio 5.0.0 requires messages as dictionaries with 'role' and 'content' keys
+        # Gradio 6.x Chatbot uses messages as dictionaries with 'role' and 'content' keys
         history.append({"role": "user", "content": message})
         history.append({"role": "assistant", "content": response_text})
         yield history, ""
 
     except Exception as e:
         logger.exception("Chat failed")
-        # Gradio 5.0.0 requires messages as dictionaries with 'role' and 'content' keys
+        # Gradio 6.x Chatbot uses messages as dictionaries with 'role' and 'content' keys
         history.append({"role": "user", "content": message})
         history.append({"role": "assistant", "content": f"Error: {str(e)}"})
         yield history, ""
@@ -311,6 +447,81 @@ def build_deck_uploader_tab():
         "* Text uploads should be the Arena clipboard format.\n"
         "* The latest `deck_id` works across the Meta dashboard and chat tabs."
     )
+
+def build_collection_uploader_tab():
+    """Build the Collection Upload tab UI for large-scale CSV imports."""
+    
+    gr.Markdown("""
+    ## 📦 Collection Upload
+    
+    Import your entire MTG collection from a CSV file. This tab is optimized for large files
+    with up to **70,000+ cards** using chunked processing.
+    
+    **Supported Format:** CSV with columns: `Quantity, Name, Set, Type, Mana Cost, CMC, Colors, Rarity`
+    """)
+    
+    with gr.Row():
+        with gr.Column(scale=2):
+            collection_input = gr.File(
+                file_types=[".csv"],
+                label="Collection CSV File",
+                elem_classes=["upload-zone", "upload-zone-large"]
+            )
+        
+        with gr.Column(scale=1):
+            upload_collection_btn = gr.Button(
+                "📤 Upload Collection",
+                variant="primary",
+                size="lg"
+            )
+    
+    # Status and results section
+    with gr.Row():
+        with gr.Column():
+            collection_status = gr.JSON(
+                label="Upload Status",
+                value={"status": "ready", "message": "Select a CSV file to upload"}
+            )
+    
+    with gr.Row():
+        collection_id_box = gr.Number(
+            label="Collection ID",
+            interactive=False,
+            value=None
+        )
+    
+    # State for tracking
+    collection_id_state = gr.State(value=None)
+    
+    # Tips section
+    gr.Markdown("""
+    ### 💡 Tips for Large Collections
+    
+    - **File Size:** Files up to 100MB are supported (approximately 70,000 cards)
+    - **Processing:** Large files are processed in chunks of 5,000 rows
+    - **Progress:** Watch the progress bar for real-time updates
+    - **Timeout Prevention:** Progress updates keep the connection alive
+    - **Partial Success:** If some rows fail, the rest will still be imported
+    
+    ### Expected CSV Format
+    
+    ```csv
+    Quantity,Name,Set,Type,Mana Cost,CMC,Colors,Rarity
+    4,Lightning Bolt,M11,Instant,R,1,R,Common
+    2,Counterspell,MH2,Instant,UU,2,U,Uncommon
+    1,Black Lotus,LEA,Artifact,0,0,,Rare
+    ```
+    """)
+    
+    # Wire up the event handler
+    upload_collection_btn.click(
+        fn=handle_collection_upload,
+        inputs=[collection_input, collection_id_state],
+        outputs=[collection_status, collection_id_state, collection_id_box],
+        show_progress="full"
+    )
+    
+    return collection_input, upload_collection_btn, collection_status, collection_id_box, collection_id_state
 
 def build_analysis_tab():
     """Deck analysis and optimization tab."""
@@ -1181,6 +1392,81 @@ footer {
     outline: 3px solid Highlight;
   }
 }
+
+/* === Collection Upload Tab Styling === */
+.upload-zone {
+  border: 2px dashed var(--border-color-primary, #4a4a6a);
+  border-radius: 12px;
+  padding: 24px;
+  background: var(--background-fill-secondary, rgba(30, 30, 46, 0.5));
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.upload-zone:hover {
+  border-color: var(--color-accent, #7c3aed);
+  background: var(--background-fill-secondary, rgba(30, 30, 46, 0.7));
+}
+
+.upload-zone-large {
+  min-height: 150px;
+}
+
+.collection-progress {
+  background: var(--background-fill-secondary, rgba(30, 30, 46, 0.5));
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.status-success {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.status-error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.status-processing {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.collection-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stat-card {
+  background: var(--background-fill-secondary, rgba(30, 30, 46, 0.5));
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--color-accent, #7c3aed);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--body-text-color-subdued, #888);
+  margin-top: 4px;
+}
 """
 
     # Theme Controller JavaScript for persistence
@@ -1266,6 +1552,9 @@ window.themeController = ThemeController;
 
             with gr.Tab("Deck Uploads"):
                 build_deck_uploader_tab()
+
+            with gr.Tab("Collection Upload"):
+                build_collection_uploader_tab()
 
             with gr.Tab("Analysis"):
                 build_analysis_tab()

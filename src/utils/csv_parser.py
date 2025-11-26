@@ -1,12 +1,16 @@
 """CSV parser for MTG Arena deck exports."""
 
+import gc
 import re
-from typing import List, Tuple
+import logging
+from typing import List, Tuple, Generator
 from io import StringIO
 import pandas as pd
 
 from ..models.deck import Card, Deck
 from .mana_calculator import calculate_cmc, parse_mana_cost, extract_colors
+
+logger = logging.getLogger(__name__)
 
 
 def parse_deck_string(deck_string: str) -> Deck:
@@ -143,3 +147,128 @@ def determine_card_type(card_name: str) -> str:
     
     # Default to Unknown - should be looked up from card database
     return "Unknown"
+
+
+def count_csv_rows(filepath: str) -> int:
+    """
+    Efficiently count rows in CSV without loading into memory.
+    
+    Args:
+        filepath: Path to the CSV file
+        
+    Returns:
+        Number of data rows (excluding header)
+    """
+    with open(filepath, 'r', encoding='utf-8') as f:
+        # Count lines, subtract 1 for header
+        return sum(1 for _ in f) - 1
+
+
+def _parse_card_row(row: pd.Series) -> Card:
+    """
+    Parse a single CSV row into a Card object.
+    
+    Args:
+        row: pandas Series with normalized column names
+        
+    Returns:
+        Card object
+        
+    Raises:
+        ValueError: If required fields are missing or invalid
+    """
+    # Handle quantity - default to 1 if missing
+    quantity = int(row.get('quantity', 1) or 1)
+    
+    # Get name - required field
+    name = str(row.get('name', '')).strip()
+    if not name:
+        raise ValueError("Card name is required")
+    
+    # Parse CMC - handle various formats
+    cmc_val = row.get('cmc', 0)
+    try:
+        cmc = int(float(cmc_val)) if pd.notna(cmc_val) else 0
+    except (ValueError, TypeError):
+        cmc = 0
+    
+    # Parse colors - handle string or list
+    colors_raw = row.get('colors', '')
+    if pd.isna(colors_raw):
+        colors = []
+    elif isinstance(colors_raw, str):
+        colors = [c.strip() for c in colors_raw.split(',') if c.strip()]
+    else:
+        colors = list(colors_raw) if colors_raw else []
+    
+    return Card(
+        name=name,
+        quantity=quantity,
+        card_type=str(row.get('type', '')).strip() or None,
+        mana_cost=str(row.get('mana_cost', '')).strip() or None,
+        cmc=cmc,
+        colors=colors,
+        rarity=str(row.get('rarity', '')).strip() or None,
+        set_code=str(row.get('set', '')).strip() or None
+    )
+
+
+def parse_arena_csv_chunked(
+    filepath: str,
+    chunk_size: int = 5000
+) -> Generator[Tuple[int, List[Card], List[int]], None, None]:
+    """
+    Parse large CSV file in chunks using pandas chunked reader.
+    
+    This is memory-efficient for large collection CSVs (up to 70K+ rows).
+    
+    Args:
+        filepath: Path to the CSV file
+        chunk_size: Number of rows per chunk (default 5000)
+        
+    Yields:
+        Tuple of (chunk_index, cards_list, failed_row_indices)
+        
+    Example:
+        for chunk_idx, cards, failed in parse_arena_csv_chunked("collection.csv"):
+            all_cards.extend(cards)
+            all_failed.extend(failed)
+    """
+    chunk_iter = pd.read_csv(
+        filepath,
+        chunksize=chunk_size,
+        dtype={
+            'Quantity': 'Int64',  # Nullable integer
+            'Name': 'string',
+            'CMC': 'Float64',     # Nullable float
+        },
+        on_bad_lines='warn',
+        encoding='utf-8'
+    )
+    
+    for chunk_idx, chunk_df in enumerate(chunk_iter):
+        # Normalize column names (lowercase, underscores)
+        chunk_df.columns = (
+            chunk_df.columns.str.strip()
+            .str.lower()
+            .str.replace(' ', '_')
+            .str.replace('-', '_')
+        )
+        
+        cards: List[Card] = []
+        failed_rows: List[int] = []
+        
+        for row_idx, row in chunk_df.iterrows():
+            global_row_idx = chunk_idx * chunk_size + row_idx
+            try:
+                card = _parse_card_row(row)
+                cards.append(card)
+            except Exception as e:
+                failed_rows.append(global_row_idx)
+                logger.warning(f"Failed to parse row {global_row_idx}: {e}")
+        
+        yield chunk_idx, cards, failed_rows
+        
+        # Explicit memory cleanup after each chunk
+        del chunk_df
+        gc.collect()
