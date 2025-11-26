@@ -264,6 +264,7 @@ async def test_scryfall_service_get_card_by_multiverse_id(mock_http_client):
         "mana_cost": "{3}{G}{G}",
         "cmc": 5.0,
         "colors": ["G"],
+        "rarity": "common",
         "games": ["paper"]
     }
     mock_http_client.get.return_value = mock_response

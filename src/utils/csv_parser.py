@@ -110,11 +110,11 @@ def parse_arena_csv(csv_content: str) -> Deck:
     sideboard = []
     
     for _, row in df.iterrows():
-        # Handle both 'quantity' and 'count' column names
-        if 'quantity' in row:
-            quantity = int(row.get('quantity', 1))
-        elif 'count' in row:
-            quantity = int(row.get('count', 0))
+        # Handle 'quantity' column (standard format)
+        # Default to 1 for standard format since missing quantity typically means 1 copy
+        # Note: Multiverse ID format uses 'count' which defaults to 0 in parse_multiverse_id_csv_sync
+        if 'quantity' in row and pd.notna(row.get('quantity')):
+            quantity = int(row['quantity'])
         else:
             quantity = 1
         
@@ -223,9 +223,9 @@ async def parse_multiverse_id_csv(
         # Try to fetch card data from Scryfall API using Multiverse ID
         if multiverse_id and pd.notna(multiverse_id):
             try:
-                card_data = await scryfall_service.get_card_by_multiverse_id(
-                    int(multiverse_id)
-                )
+                # Safely convert multiverse_id to int
+                mid_int = int(float(multiverse_id))
+                card_data = await scryfall_service.get_card_by_multiverse_id(mid_int)
                 if card_data:
                     # Extract data from Scryfall response
                     set_code = card_data.get('set', '').upper()
