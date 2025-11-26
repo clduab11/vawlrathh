@@ -112,7 +112,6 @@ def parse_arena_csv(csv_content: str) -> Deck:
     for _, row in df.iterrows():
         # Handle 'quantity' column (standard format)
         # Default to 1 for standard format since missing quantity typically means 1 copy
-        # Note: Multiverse ID format uses 'count' which defaults to 0 in parse_multiverse_id_csv_sync
         if 'quantity' in row and pd.notna(row.get('quantity')):
             quantity = int(row['quantity'])
         else:
