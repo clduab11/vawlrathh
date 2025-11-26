@@ -1,7 +1,7 @@
 """CSV parser for MTG Arena deck exports."""
 
 import re
-from typing import List, Tuple, Optional, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 from io import StringIO
 import pandas as pd
 
