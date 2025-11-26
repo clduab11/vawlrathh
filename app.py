@@ -17,8 +17,12 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from dotenv import load_dotenv
 import gradio as gr
 import spaces
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Ensure project root is in python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -87,7 +91,13 @@ async def handle_csv_upload(uploaded_file, previous_id):
         # Ensure DB is ready
         await ensure_db_initialized()
 
-        content = uploaded_file.read()
+        # Handle both file path (Gradio 4.x+) and file object (older Gradio)
+        if hasattr(uploaded_file, 'read'):
+            content = uploaded_file.read()
+        else:
+            # uploaded_file is a path string (NamedString or str)
+            with open(str(uploaded_file), 'r', encoding='utf-8') as f:
+                content = f.read()
         if isinstance(content, bytes):
             content = content.decode('utf-8')
 
@@ -222,12 +232,16 @@ async def chat_streaming(message, history, deck_id):
         if result.get("consensus_checked") and not result.get("consensus_passed"):
             response_text += f"\n\n⚠️ **Consensus Warning**: {result.get('consensus_breaker', {}).get('reason')}"
 
-        history.append((message, response_text))
+        # Gradio 5.0.0 requires messages as dictionaries with 'role' and 'content' keys
+        history.append({"role": "user", "content": message})
+        history.append({"role": "assistant", "content": response_text})
         yield history, ""
 
     except Exception as e:
         logger.exception("Chat failed")
-        history.append((message, f"Error: {str(e)}"))
+        # Gradio 5.0.0 requires messages as dictionaries with 'role' and 'content' keys
+        history.append({"role": "user", "content": message})
+        history.append({"role": "assistant", "content": f"Error: {str(e)}"})
         yield history, ""
 
 # -----------------------------------------------------------------------------
