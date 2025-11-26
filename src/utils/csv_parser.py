@@ -1,5 +1,6 @@
 """CSV parser for MTG Arena deck exports."""
 
+import logging
 import re
 from typing import List, TYPE_CHECKING
 from io import StringIO
@@ -7,6 +8,8 @@ import pandas as pd
 
 from ..models.deck import Card, Deck
 from .mana_calculator import calculate_cmc, parse_mana_cost, extract_colors
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..services.scryfall_service import ScryfallService
@@ -236,9 +239,12 @@ async def parse_multiverse_id_csv(
                     # Use Scryfall name if available (more accurate)
                     if card_data.get('name'):
                         name = card_data['name']
-            except Exception:
+            except Exception as e:
                 # If API lookup fails, fall back to CSV data
-                pass
+                logger.debug(
+                    f'Failed to fetch card by Multiverse ID {mid_int}: {e}',
+                    exc_info=True
+                )
         
         # Fallback: try name lookup if Multiverse ID lookup failed
         if set_code is None and name:
@@ -250,8 +256,11 @@ async def parse_multiverse_id_csv(
                     mana_cost = card_data.get('mana_cost', '')
                     cmc = float(card_data.get('cmc', 0))
                     colors = card_data.get('colors', [])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(
+                    f'Failed to fetch card by name {name}: {e}',
+                    exc_info=True
+                )
         
         card = Card(
             name=name,
