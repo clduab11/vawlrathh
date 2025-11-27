@@ -249,3 +249,83 @@ async def test_scryfall_service_handles_timeout(mock_http_client):
     
     # Assert
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_scryfall_service_get_card_by_multiverse_id(mock_http_client):
+    """Test fetching card by Multiverse ID."""
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "name": "Crash of Rhinos",
+        "set": "mir",
+        "type_line": "Creature — Rhino",
+        "mana_cost": "{3}{G}{G}",
+        "cmc": 5.0,
+        "colors": ["G"],
+        "rarity": "common",
+        "games": ["paper"]
+    }
+    mock_http_client.get.return_value = mock_response
+    
+    # Act
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
+        result = await service.get_card_by_multiverse_id(6873)
+    
+    # Assert
+    assert result is not None
+    assert result["name"] == "Crash of Rhinos"
+    assert result["set"] == "mir"
+    assert result["cmc"] == 5.0
+    mock_http_client.get.assert_called_once()
+    # Verify the URL contains the multiverse ID
+    call_args = mock_http_client.get.call_args
+    assert "multiverse/6873" in call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_scryfall_service_get_card_by_multiverse_id_not_found(mock_http_client):
+    """Test handling of 404 when Multiverse ID is not found."""
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+    mock_http_client.get.return_value = mock_response
+    
+    # Act
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
+        result = await service.get_card_by_multiverse_id(99999999)
+    
+    # Assert
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_scryfall_service_get_card_by_multiverse_id_caching(mock_http_client):
+    """Test that Multiverse ID lookups are cached."""
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "name": "Test Card",
+        "set": "test"
+    }
+    mock_http_client.get.return_value = mock_response
+    
+    # Act
+    service = ScryfallService()
+    service._client = mock_http_client
+    async with service:
+        # First request - should hit API
+        result1 = await service.get_card_by_multiverse_id(12345)
+        
+        # Second request with same ID - should use cache
+        result2 = await service.get_card_by_multiverse_id(12345)
+    
+    # Assert - API should only be called once due to caching
+    assert mock_http_client.get.call_count == 1
+    assert result1 == result2

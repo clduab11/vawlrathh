@@ -85,6 +85,53 @@ class ScryfallService:
             await self._client.aclose()
             self._client = None
 
+    async def get_card_by_multiverse_id(
+        self,
+        multiverse_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get card data from Scryfall by Multiverse ID.
+
+        Args:
+            multiverse_id: The Multiverse ID of the card
+
+        Returns:
+            Card data dict or None if not found
+        """
+        cache_key = f"multiverse:{multiverse_id}"
+        cached = self._get_cached(cache_key)
+        if cached:
+            return cached
+
+        await self._rate_limit()
+
+        try:
+            await self._ensure_client()
+            client = self._client
+
+            response = await client.get(
+                f"{self.BASE_URL}/cards/multiverse/{multiverse_id}",
+                timeout=10.0
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                self._set_cached(cache_key, data)
+                return data
+            elif response.status_code == 404:
+                logger.warning(f"Card not found for Multiverse ID: {multiverse_id}")
+                return None
+            else:
+                logger.error(f"Scryfall API error {response.status_code}: {response.text}")
+                return None
+
+        except httpx.TimeoutException:
+            logger.error(f"Timeout fetching card with Multiverse ID: {multiverse_id}")
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching card from Scryfall: {e}")
+            return None
+
     async def get_card_by_name(
         self,
         card_name: str,

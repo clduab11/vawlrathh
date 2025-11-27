@@ -1,12 +1,28 @@
 """CSV parser for MTG Arena deck exports."""
 
+import logging
 import re
-from typing import List, Tuple
+from typing import List, TYPE_CHECKING
 from io import StringIO
 import pandas as pd
 
 from ..models.deck import Card, Deck
 from .mana_calculator import calculate_cmc, parse_mana_cost, extract_colors
+
+logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from ..services.scryfall_service import ScryfallService
+
+
+# Custom header format: Id, Name, Set, Color, Rarity, Count
+MULTIVERSE_ID_HEADERS = {'id', 'name', 'set', 'color', 'rarity', 'count'}
+
+
+def _has_multiverse_id_format(columns: List[str]) -> bool:
+    """Check if the CSV has the custom Multiverse ID header format."""
+    normalized = {col.lower().strip() for col in columns}
+    return normalized == MULTIVERSE_ID_HEADERS
 
 
 def parse_deck_string(deck_string: str) -> Deck:
@@ -74,22 +90,36 @@ def parse_deck_string(deck_string: str) -> Deck:
 
 def parse_arena_csv(csv_content: str) -> Deck:
     """
-    Parse CSV export from Steam MTG Arena.
+    Parse CSV export from Steam MTG Arena or custom Multiverse ID format.
     
-    Expected CSV format:
-        Quantity,Name,Set,Collector Number,Type,Mana Cost,CMC,Colors,Rarity
+    Supported CSV formats:
+        1. Standard format: Quantity,Name,Set,Collector Number,Type,Mana Cost,CMC,Colors,Rarity
+        2. Multiverse ID format: Id,Name,Set,Color,Rarity,Count
+    
+    For Multiverse ID format, use parse_multiverse_id_csv_sync for synchronous parsing
+    or parse_multiverse_id_csv for async parsing with Scryfall API lookup.
     """
     # Read CSV
     df = pd.read_csv(StringIO(csv_content))
     
-    # Normalize column names
+    # Check if this is the Multiverse ID format
+    if _has_multiverse_id_format(df.columns.tolist()):
+        return parse_multiverse_id_csv_sync(csv_content)
+    
+    # Normalize column names for standard format
     df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
     
     mainboard = []
     sideboard = []
     
     for _, row in df.iterrows():
-        quantity = int(row.get('quantity', 1))
+        # Handle 'quantity' column (standard format)
+        # Default to 1 for standard format since missing quantity typically means 1 copy
+        if 'quantity' in row and pd.notna(row.get('quantity')):
+            quantity = int(row['quantity'])
+        else:
+            quantity = 1
+        
         name = str(row.get('name', ''))
         set_code = str(row.get('set', '')) if 'set' in row else None
         card_type = str(row.get('type', 'Unknown'))
@@ -143,3 +173,181 @@ def determine_card_type(card_name: str) -> str:
     
     # Default to Unknown - should be looked up from card database
     return "Unknown"
+
+
+async def parse_multiverse_id_csv(
+    csv_content: str,
+    scryfall_service: "ScryfallService"
+) -> Deck:
+    """
+    Parse CSV with Multiverse ID format using Scryfall API for card lookup.
+    
+    Expected CSV format:
+        Id,Name,Set,Color,Rarity,Count
+    
+    Where:
+        - Id: Multiverse ID (used for Scryfall API lookup)
+        - Name: Card name
+        - Set: Non-standard set codes (ignored, fetched from API)
+        - Color: Card color (ignored, fetched from API)
+        - Rarity: Card rarity
+        - Count: Quantity (0 is allowed)
+    
+    Args:
+        csv_content: The CSV file content as a string
+        scryfall_service: ScryfallService instance for API lookups
+    
+    Returns:
+        Deck object with parsed cards
+    """
+    # Read CSV
+    df = pd.read_csv(StringIO(csv_content))
+    
+    # Normalize column names
+    df.columns = df.columns.str.strip().str.lower()
+    
+    mainboard = []
+    
+    for _, row in df.iterrows():
+        # Map Count column to quantity (allow 0)
+        quantity = int(row.get('count', 0))
+        name = str(row.get('name', ''))
+        multiverse_id = row.get('id')
+        rarity = str(row.get('rarity', '')) if pd.notna(row.get('rarity')) else None
+        
+        # Default card data
+        card_type = "Unknown"
+        mana_cost = ""
+        cmc = 0.0
+        colors = []
+        set_code = None
+        
+        # Try to fetch card data from Scryfall API using Multiverse ID
+        if multiverse_id and pd.notna(multiverse_id):
+            try:
+                # Safely convert multiverse_id to int
+                # Convert via float to handle pandas nullable int types that may be stored as float64
+                mid_int = int(float(multiverse_id))
+                card_data = await scryfall_service.get_card_by_multiverse_id(mid_int)
+                if card_data:
+                    # Extract data from Scryfall response
+                    set_code = card_data.get('set', '').upper()
+                    card_type = card_data.get('type_line', 'Unknown')
+                    mana_cost = card_data.get('mana_cost', '')
+                    cmc = float(card_data.get('cmc', 0))
+                    colors = card_data.get('colors', [])
+                    # Use Scryfall name if available (more accurate)
+                    if card_data.get('name'):
+                        name = card_data['name']
+            except Exception as e:
+                # If API lookup fails, fall back to CSV data
+                logger.debug(
+                    f'Failed to fetch card by Multiverse ID {mid_int}: {e}',
+                    exc_info=True
+                )
+        
+        # Fallback: try name lookup if Multiverse ID lookup failed
+        if set_code is None and name:
+            try:
+                card_data = await scryfall_service.get_card_by_name(name)
+                if card_data:
+                    set_code = card_data.get('set', '').upper()
+                    card_type = card_data.get('type_line', 'Unknown')
+                    mana_cost = card_data.get('mana_cost', '')
+                    cmc = float(card_data.get('cmc', 0))
+                    colors = card_data.get('colors', [])
+            except Exception as e:
+                logger.debug(
+                    f'Failed to fetch card by name {name}: {e}',
+                    exc_info=True
+                )
+        
+        card = Card(
+            name=name,
+            quantity=quantity,
+            card_type=card_type,
+            mana_cost=mana_cost,
+            cmc=cmc,
+            colors=colors,
+            rarity=rarity,
+            set_code=set_code
+        )
+        
+        mainboard.append(card)
+    
+    return Deck(
+        name="CSV Import",
+        mainboard=mainboard,
+        sideboard=[]
+    )
+
+
+def parse_multiverse_id_csv_sync(csv_content: str) -> Deck:
+    """
+    Parse CSV with Multiverse ID format synchronously (without API lookup).
+    
+    This is a fallback parser that uses only the data available in the CSV.
+    The set codes from the CSV are used as-is (even if non-standard).
+    
+    Expected CSV format:
+        Id,Name,Set,Color,Rarity,Count
+    
+    Args:
+        csv_content: The CSV file content as a string
+    
+    Returns:
+        Deck object with parsed cards
+    """
+    # Read CSV
+    df = pd.read_csv(StringIO(csv_content))
+    
+    # Normalize column names
+    df.columns = df.columns.str.strip().str.lower()
+    
+    mainboard = []
+    
+    for _, row in df.iterrows():
+        # Map Count column to quantity (allow 0)
+        quantity = int(row.get('count', 0))
+        name = str(row.get('name', ''))
+        set_code = str(row.get('set', '')) if pd.notna(row.get('set')) else None
+        rarity = str(row.get('rarity', '')) if pd.notna(row.get('rarity')) else None
+        
+        # Map Color column to colors list
+        color_value = row.get('color', '')
+        if pd.notna(color_value) and str(color_value).strip():
+            # Map color names to color codes
+            color_map = {
+                'white': 'W', 'blue': 'U', 'black': 'B', 
+                'red': 'R', 'green': 'G', 'colorless': ''
+            }
+            color_str = str(color_value).strip().lower()
+            if color_str in color_map:
+                colors = [color_map[color_str]] if color_map[color_str] else []
+            else:
+                # Assume it's already in short form (W, U, B, R, G)
+                colors = [c.strip().upper() for c in str(color_value).split(',') if c.strip()]
+        else:
+            colors = []
+        
+        # Determine card type from name (simplified)
+        card_type = determine_card_type(name)
+        
+        card = Card(
+            name=name,
+            quantity=quantity,
+            card_type=card_type,
+            mana_cost="",  # Not available in this format
+            cmc=0.0,  # Would need API lookup for accurate value
+            colors=colors,
+            rarity=rarity,
+            set_code=set_code
+        )
+        
+        mainboard.append(card)
+    
+    return Deck(
+        name="CSV Import",
+        mainboard=mainboard,
+        sideboard=[]
+    )
