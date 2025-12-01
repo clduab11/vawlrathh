@@ -76,7 +76,7 @@ bumpversion==0.6.0               # Version bumping tool
 # Dependency Management
 # ----------------------------------------------------------------------------
 pip-tools==7.4.1                 # Pin dependencies, generate requirements
-pipdeptree==2.23.4               # Display dependency tree
+pipdeptree==2.28.0               # Display dependency tree
 
 # ----------------------------------------------------------------------------
 # Performance & Profiling
